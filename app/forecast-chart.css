@@ -1,0 +1,17 @@
+.forecastChart{margin-top:14px;padding:18px;background:linear-gradient(145deg,#0b1a24,#08131c);border:1px solid #25404d;border-radius:12px;overflow:hidden}
+.forecastChartHead{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.forecastChartHead>div:first-child{display:flex;gap:10px;align-items:center}
+.forecastChartHead svg{color:#2edb99}
+.forecastChartHead b,.forecastChartHead small{display:block}
+.forecastChartHead small{color:#7f939f;margin-top:4px}
+.forecastLegend{display:flex;flex-wrap:wrap;gap:12px;color:#8fa1ab;font-size:11px}
+.forecastLegend span{display:flex;align-items:center;gap:5px}
+.forecastLegend i{width:9px;height:9px;border-radius:50%}
+.rangeDot{background:#2edb9970;border:1px solid #2edb99}
+.centerDot{background:#42e7ac}
+.levelDot{background:#f3ad22}
+.forecastChartCanvas{height:330px;margin-top:10px}
+.forecastChartFoot{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:18px;padding:12px 14px;background:#07131c;border:1px solid #1d303c;border-radius:8px;color:#91a2ac;font-size:12px}
+.forecastChartFoot span b{color:#e6f0f4}
+.forecastChartFoot small{text-align:right;color:#70838e}
+@media(max-width:760px){.forecastChart{padding:12px}.forecastChartHead{display:grid}.forecastLegend{gap:8px}.forecastChartCanvas{margin-left:-18px;margin-right:-8px}.forecastChartFoot{grid-template-columns:1fr;gap:5px}.forecastChartFoot small{text-align:left}}
