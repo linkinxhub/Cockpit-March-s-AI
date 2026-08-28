@@ -17,6 +17,7 @@ import "./bigdata.css";
 import "./risk-warning.css";
 import "./top-forecast.css";
 import "./ai-analysis.css";
+import "./panorama-collapse.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -25,6 +26,8 @@ import {
   BookOpen,
   Bot,
   ChartNoAxesCombined,
+  ChevronDown,
+  ChevronUp,
   ClipboardCheck,
   ExternalLink,
   FlaskConical,
@@ -355,6 +358,7 @@ export default function Home() {
   const [favorites, setFavorites] = useState<string[]>([]),
     [favoritesReady, setFavoritesReady] = useState(false);
   const [language, setLanguage] = useState<Lang>("fr");
+  const [panoramaOpen, setPanoramaOpen] = useState(true);
   const locale = { fr: "fr-FR", en: "en-US", de: "de-DE", nl: "nl-NL" }[
     language
   ];
@@ -1421,6 +1425,21 @@ export default function Home() {
             Voir le rapport complet <ExternalLink />
           </span>
         </button>
+        <section className="panoramaSection" aria-label="Panorama des marchés">
+          <button
+            className="panoramaToggle"
+            onClick={() => setPanoramaOpen((open) => !open)}
+            aria-expanded={panoramaOpen}
+            aria-controls="panorama-content"
+          >
+            <span>
+              <Gauge />
+              <b>Panorama mondial et mood du marché</b>
+              <small>{panoramaOpen ? "Réduire cette zone" : `${rows.length} actifs surveillés · afficher les catégories et le sentiment`}</small>
+            </span>
+            {panoramaOpen ? <ChevronUp /> : <ChevronDown />}
+          </button>
+          <div id="panorama-content" className={panoramaOpen ? "panoramaContent open" : "panoramaContent"}>
         <section className="marketRibbon" aria-label="Navigation des marchés">
           <div className="ribbonIntro">
             <span>Panorama mondial</span>
@@ -1550,6 +1569,8 @@ export default function Home() {
             <span>0 Baissier</span>
             <span>50 Neutre</span>
             <span>100 Optimiste</span>
+          </div>
+        </section>
           </div>
         </section>
 

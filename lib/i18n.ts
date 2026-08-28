@@ -1342,6 +1342,9 @@ const words: Record<string, [string, string, string]> = {
   "Cliquez pour obtenir une explication IA liée à": ["Click for an AI explanation related to", "Klicken Sie für eine KI-Erklärung zu", "Klik voor een AI-uitleg over"],
   "OpenAI apporte une lecture explicative séparée, sans remplacer les données, ni garantir un rendement.": ["OpenAI provides a separate explanatory reading without replacing data or guaranteeing returns.", "OpenAI liefert eine separate Erklärung, ohne Daten zu ersetzen oder Renditen zu garantieren.", "OpenAI biedt een afzonderlijke uitleg zonder gegevens te vervangen of rendement te garanderen."],
   "Le trading peut entraîner une perte partielle ou totale du capital.": ["Trading can result in a partial or total loss of capital.", "Trading kann zu einem teilweisen oder vollständigen Kapitalverlust führen.", "Trading kan leiden tot gedeeltelijk of volledig kapitaalverlies."],
+  "Panorama mondial et mood du marché": ["Global overview and market mood", "Globaler Überblick und Marktstimmung", "Wereldwijd overzicht en marktsentiment"],
+  "Réduire cette zone": ["Collapse this area", "Diesen Bereich einklappen", "Dit gebied inklappen"],
+  "actifs surveillés · afficher les catégories et le sentiment": ["assets monitored · show categories and sentiment", "Assets überwacht · Kategorien und Stimmung anzeigen", "activa gevolgd · categorieën en sentiment tonen"],
 };
 const idx: Record<Lang, number> = { fr: 0, en: 0, de: 1, nl: 2 };
 export function translateText(value: string, lang: Lang) {
