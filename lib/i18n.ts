@@ -1345,6 +1345,7 @@ const words: Record<string, [string, string, string]> = {
   "Panorama mondial et mood du marché": ["Global overview and market mood", "Globaler Überblick und Marktstimmung", "Wereldwijd overzicht en marktsentiment"],
   "Réduire cette zone": ["Collapse this area", "Diesen Bereich einklappen", "Dit gebied inklappen"],
   "actifs surveillés · afficher les catégories et le sentiment": ["assets monitored · show categories and sentiment", "Assets überwacht · Kategorien und Stimmung anzeigen", "activa gevolgd · categorieën en sentiment tonen"],
+  "Voir la prévision": ["View forecast", "Prognose anzeigen", "Prognose bekijken"],
 };
 const idx: Record<Lang, number> = { fr: 0, en: 0, de: 1, nl: 2 };
 export function translateText(value: string, lang: Lang) {

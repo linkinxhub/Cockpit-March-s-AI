@@ -20,6 +20,7 @@ import "./ai-analysis.css";
 import "./panorama-collapse.css";
 import "./interactive-guide.css";
 import "./openai-auto.css";
+import "./chart-forecast.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -1630,7 +1631,17 @@ export default function Home() {
                       {timeframes.find(([key]) => key === timeframe)?.[1]}
                     </small>
                   </div>
-                  <SlidersHorizontal />
+                  <button
+                    className="chartForecastButton"
+                    onClick={() => {
+                      setView("Prévisions");
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    aria-label={`Voir la prévision de ${active.symbol} sur ${timeframeLabel}`}
+                  >
+                    <TrendingUp />
+                    <span>Voir la prévision</span>
+                  </button>
                 </div>
                 <div
                   className="timeframePicker"
