@@ -16,6 +16,7 @@ import "./forecast-chart.css";
 import "./bigdata.css";
 import "./risk-warning.css";
 import "./top-forecast.css";
+import "./ai-analysis.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -137,6 +138,18 @@ type BigdataIntel = {
   risks: string[];
   sources: { title: string; url: string }[];
   error?: string;
+};
+type OpenAiAnalysis = {
+  decision: "ACHETER" | "VENDRE" | "ATTENDRE";
+  confidence: number;
+  summary: string;
+  drivers: string[];
+  risks: string[];
+  invalidation: string;
+  horizon: string;
+  disclaimer: string;
+  generatedAt: string;
+  model: string;
 };
 const timeframes: [Timeframe, string][] = [
   ["15m", "15 min"],
@@ -336,6 +349,9 @@ export default function Home() {
     [selectedNews, setSelectedNews] = useState<News | null>(null);
   const [bigdata, setBigdata] = useState<BigdataIntel | null>(null),
     [bigdataLoading, setBigdataLoading] = useState(false);
+  const [openAiAnalysis, setOpenAiAnalysis] = useState<OpenAiAnalysis | null>(null),
+    [openAiLoading, setOpenAiLoading] = useState(false),
+    [openAiError, setOpenAiError] = useState("");
   const [favorites, setFavorites] = useState<string[]>([]),
     [favoritesReady, setFavoritesReady] = useState(false);
   const [language, setLanguage] = useState<Lang>("fr");
@@ -869,6 +885,48 @@ export default function Home() {
   }, [active, news, timeframeComparisons, timeframe, bigdata?.bias]);
   const selectedForecast =
     forecasts.find((f) => f.period === timeframe) || forecasts[0];
+  const runOpenAiAnalysis = async () => {
+    if (!selectedForecast || active.unavailable) return;
+    setOpenAiLoading(true);
+    setOpenAiError("");
+    try {
+      const response = await fetch("/api/ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          locale: language,
+          timeframe,
+          asset: {
+            symbol: active.symbol, name: active.name, kind: active.kind,
+            price: active.last, change: active.change, decision: active.decision,
+            confidence: active.confidence, risk: active.risk, rsi: active.rsi,
+            ema20: active.ema20, ema50: active.ema50, volatility: active.volatility,
+            support: active.support, resistance: active.resistance,
+          },
+          forecast: {
+            outlook: selectedForecast.outlook, reliability: selectedForecast.reliability,
+            low: selectedForecast.low, center: selectedForecast.center, high: selectedForecast.high,
+            bull: selectedForecast.bull, neutral: selectedForecast.neutral, bear: selectedForecast.bear,
+            newsScore: selectedForecast.newsScore, macroBias: selectedForecast.macroBias,
+          },
+          bigdata,
+          news: (news[active.key] || []).slice(0, 5),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.code || "OPENAI_ERROR");
+      setOpenAiAnalysis({ ...data.analysis, generatedAt: data.generatedAt, model: data.model });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "OPENAI_ERROR";
+      setOpenAiError(code);
+    } finally {
+      setOpenAiLoading(false);
+    }
+  };
+  useEffect(() => {
+    setOpenAiAnalysis(null);
+    setOpenAiError("");
+  }, [active.key, timeframe, language, analysisRevision]);
   const forecastChartData = forecasts.map((f) => ({
     period: timeframes.find(([key]) => key === f.period)?.[1] || f.period,
     range: f.low !== null && f.high !== null ? [f.low, f.high] : null,
@@ -2568,6 +2626,51 @@ export default function Home() {
                 </div>
               </>
             )}
+            <section className="openAiPanel">
+              <div className="openAiHead">
+                <div>
+                  <Bot />
+                  <span>
+                    <b>ANALYSE INSTANTANÉE OPENAI</b>
+                    <small>Lecture explicative croisée : technique, prévision, Bigdata et actualités.</small>
+                  </span>
+                </div>
+                <button onClick={() => void runOpenAiAnalysis()} disabled={openAiLoading || active.unavailable}>
+                  <Activity />
+                  {openAiLoading ? "Analyse en cours…" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant"}
+                </button>
+              </div>
+              {openAiLoading && !openAiAnalysis && (
+                <div className="openAiEmpty"><Bot /><b>OpenAI inspecte le contexte actuel…</b><span>L’actif, la période et les dernières données sont analysés ensemble.</span></div>
+              )}
+              {openAiError && (
+                <div className="openAiError">
+                  <AlertTriangle />
+                  <span><b>Analyse OpenAI indisponible</b><small>{openAiError === "OPENAI_LIMIT" || openAiError === "RATE_LIMITED" ? "Limite temporaire atteinte. Réessayez dans une minute." : openAiError === "OPENAI_NOT_CONFIGURED" ? "La clé serveur OPENAI_API_KEY n’est pas encore disponible pour ce déploiement." : "Vérifiez la clé, le crédit API ou réessayez dans quelques instants."}</small></span>
+                  <button onClick={() => void runOpenAiAnalysis()}>Réessayer</button>
+                </div>
+              )}
+              {openAiAnalysis && (
+                <>
+                  <div className="openAiVerdict">
+                    <div>
+                      <span>Décision IA conditionnelle · {timeframeLabel}</span>
+                      <b className={openAiAnalysis.decision === "ACHETER" ? "buy" : openAiAnalysis.decision === "VENDRE" ? "sell" : "wait"}>{openAiAnalysis.decision}</b>
+                      <small>Confiance d’alignement {openAiAnalysis.confidence}% · modèle {openAiAnalysis.model}</small>
+                    </div>
+                    <p>{openAiAnalysis.summary}</p>
+                  </div>
+                  <div className="openAiColumns">
+                    <article><h3>Facteurs favorables</h3>{openAiAnalysis.drivers.map((item, index) => <p key={index}><i>{index + 1}</i>{item}</p>)}</article>
+                    <article className="risks"><h3>Risques à surveiller</h3>{openAiAnalysis.risks.map((item, index) => <p key={index}><AlertTriangle />{item}</p>)}</article>
+                  </div>
+                  <div className="openAiInvalidation"><ShieldCheck /><span><b>Condition d’invalidation</b>{openAiAnalysis.invalidation}</span><small>Généré {new Date(openAiAnalysis.generatedAt).toLocaleString(locale)}</small></div>
+                </>
+              )}
+              {!openAiLoading && !openAiError && !openAiAnalysis && (
+                <div className="openAiEmpty"><Bot /><b>Analyse prête</b><span>Cliquez pour obtenir une explication IA liée à {active.symbol} sur {timeframeLabel}.</span></div>
+              )}
+            </section>
             <section
               className={
                 "bigdataPanel " + (bigdataLoading ? "bigdataLoading" : "")
@@ -2719,9 +2822,9 @@ export default function Home() {
               <p>
                 <b>Prévision éducative, non conseil financier.</b> Le moteur
                 produit des scénarios conditionnels et une fourchette
-                d’incertitude. Il n’utilise pas encore OpenAI : il s’agit d’un
-                modèle quantitatif explicable, alimenté par les données réelles
-                disponibles.
+                d’incertitude. OpenAI apporte une lecture explicative séparée,
+                sans remplacer les données, ni garantir un rendement. Le
+                trading peut entraîner une perte partielle ou totale du capital.
               </p>
             </div>
           </section>
