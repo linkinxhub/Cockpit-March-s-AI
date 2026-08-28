@@ -21,6 +21,7 @@ import "./panorama-collapse.css";
 import "./interactive-guide.css";
 import "./openai-auto.css";
 import "./chart-forecast.css";
+import "./sticky-toggle.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -37,6 +38,8 @@ import {
   Gauge,
   LayoutDashboard,
   Newspaper,
+  Pin,
+  PinOff,
   Plus,
   Search,
   Settings,
@@ -365,6 +368,7 @@ export default function Home() {
     [favoritesReady, setFavoritesReady] = useState(false);
   const [language, setLanguage] = useState<Lang>("fr");
   const [panoramaOpen, setPanoramaOpen] = useState(true);
+  const [stickyEnabled, setStickyEnabled] = useState(true);
   const locale = { fr: "fr-FR", en: "en-US", de: "de-DE", nl: "nl-NL" }[
     language
   ];
@@ -518,6 +522,10 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem("cockpit-language") as Lang | null;
     if (saved && ["fr", "en", "de", "nl"].includes(saved)) setLanguage(saved);
+  }, []);
+  useEffect(() => {
+    const saved = localStorage.getItem("cockpit-sticky-enabled");
+    if (saved !== null) setStickyEnabled(saved === "true");
   }, []);
   useEffect(() => {
     localStorage.setItem("cockpit-language", language);
@@ -1340,7 +1348,7 @@ export default function Home() {
           </span>
         </div>
       </aside>
-      <main>
+      <main className={stickyEnabled ? "stickyEnabled" : "stickyDisabled"}>
         <header data-guide="search-language">
           <label>
             <Search />
@@ -1370,6 +1378,19 @@ export default function Home() {
               </button>
             ))}
           </div>
+          <button
+            className={"stickyToggle " + (stickyEnabled ? "on" : "")}
+            onClick={() => {
+              const next = !stickyEnabled;
+              setStickyEnabled(next);
+              localStorage.setItem("cockpit-sticky-enabled", String(next));
+            }}
+            aria-pressed={stickyEnabled}
+            title={stickyEnabled ? "Désactiver le mode sticky" : "Activer le mode sticky"}
+          >
+            {stickyEnabled ? <Pin /> : <PinOff />}
+            <span>{stickyEnabled ? "Sticky activé" : "Sticky désactivé"}</span>
+          </button>
           <div className="liveState">
             <i className={scanning ? "pulse" : ""} />
             <span>

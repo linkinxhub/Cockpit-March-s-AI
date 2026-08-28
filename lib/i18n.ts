@@ -1346,6 +1346,10 @@ const words: Record<string, [string, string, string]> = {
   "Réduire cette zone": ["Collapse this area", "Diesen Bereich einklappen", "Dit gebied inklappen"],
   "actifs surveillés · afficher les catégories et le sentiment": ["assets monitored · show categories and sentiment", "Assets überwacht · Kategorien und Stimmung anzeigen", "activa gevolgd · categorieën en sentiment tonen"],
   "Voir la prévision": ["View forecast", "Prognose anzeigen", "Prognose bekijken"],
+  "Sticky activé": ["Sticky enabled", "Sticky aktiviert", "Sticky ingeschakeld"],
+  "Sticky désactivé": ["Sticky disabled", "Sticky deaktiviert", "Sticky uitgeschakeld"],
+  "Désactiver le mode sticky": ["Disable sticky mode", "Sticky-Modus deaktivieren", "Sticky-modus uitschakelen"],
+  "Activer le mode sticky": ["Enable sticky mode", "Sticky-Modus aktivieren", "Sticky-modus inschakelen"],
 };
 const idx: Record<Lang, number> = { fr: 0, en: 0, de: 1, nl: 2 };
 export function translateText(value: string, lang: Lang) {
