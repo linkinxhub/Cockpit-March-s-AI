@@ -22,6 +22,7 @@ import "./interactive-guide.css";
 import "./openai-auto.css";
 import "./chart-forecast.css";
 import "./sticky-toggle.css";
+import "./asset-search.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -369,6 +370,8 @@ export default function Home() {
   const [language, setLanguage] = useState<Lang>("fr");
   const [panoramaOpen, setPanoramaOpen] = useState(true);
   const [stickyEnabled, setStickyEnabled] = useState(true);
+  const [assetSearchOpen, setAssetSearchOpen] = useState(false);
+  const assetSearchRef = useRef<HTMLDivElement>(null);
   const locale = { fr: "fr-FR", en: "en-US", de: "de-DE", nl: "nl-NL" }[
     language
   ];
@@ -528,6 +531,13 @@ export default function Home() {
     if (saved !== null) setStickyEnabled(saved === "true");
   }, []);
   useEffect(() => {
+    const close = (event: PointerEvent) => {
+      if (!assetSearchRef.current?.contains(event.target as Node)) setAssetSearchOpen(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, []);
+  useEffect(() => {
     localStorage.setItem("cockpit-language", language);
     document.documentElement.lang = language;
     const apply = (root: Node, mutation = false) => {
@@ -589,6 +599,14 @@ export default function Home() {
       ),
     [rows, kind, query, view, favorites],
   );
+  const searchGroups = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    const order = ["Crypto", "Forex", "Indices", "Métaux", "Baromètres"];
+    return order.map((category) => ({
+      category,
+      items: rows.filter((row) => row.kind === category && (!term || `${row.symbol} ${row.name}`.toLowerCase().includes(term))),
+    })).filter((group) => group.items.length);
+  }, [rows, query]);
   const addAlert = () => {
     if (!alertPrice || !Number(alertPrice)) return;
     setAlerts((a) => [
@@ -1350,14 +1368,43 @@ export default function Home() {
       </aside>
       <main className={stickyEnabled ? "stickyEnabled" : "stickyDisabled"}>
         <header data-guide="search-language">
-          <label>
-            <Search />
-            <input
-              placeholder="Rechercher un actif…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </label>
+          <div className="assetSearch" ref={assetSearchRef}>
+            <label>
+              <Search />
+              <input
+                placeholder="Rechercher ou choisir un actif…"
+                value={query}
+                onFocus={() => setAssetSearchOpen(true)}
+                onChange={(e) => { setQuery(e.target.value); setAssetSearchOpen(true); }}
+                aria-expanded={assetSearchOpen}
+                aria-controls="global-asset-list"
+              />
+              <button type="button" onClick={() => setAssetSearchOpen((open) => !open)} aria-label="Afficher tous les actifs"><ChevronDown /></button>
+            </label>
+            {assetSearchOpen && (
+              <div className="assetSearchMenu" id="global-asset-list">
+                <div className="assetSearchSummary"><b>Tous les actifs de la plateforme</b><span>{rows.length} actifs · {searchGroups.length} catégories</span></div>
+                <div className="assetSearchGroups">
+                  {searchGroups.map((group) => (
+                    <section key={group.category}>
+                      <h3><span>{group.category}</span><small>{group.items.length}</small></h3>
+                      <div>
+                        {group.items.map((row) => (
+                          <button key={row.key} className={active.key === row.key ? "active" : ""} onClick={() => {
+                            setActive(row); setQuery(""); setAssetSearchOpen(false); setView("Cockpit");
+                          }}>
+                            <span><b>{row.symbol}</b><small>{row.name}</small></span>
+                            <em className={row.unavailable ? "off" : (row.change ?? 0) >= 0 ? "up" : "down"}>{row.unavailable ? "Indisponible" : percent(row.change)}</em>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                  {!searchGroups.length && <p className="assetSearchEmpty">Aucun actif ne correspond à cette recherche.</p>}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="languageSwitch" aria-label="Langue / Language">
             {(
               [

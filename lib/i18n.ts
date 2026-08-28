@@ -1350,6 +1350,11 @@ const words: Record<string, [string, string, string]> = {
   "Sticky désactivé": ["Sticky disabled", "Sticky deaktiviert", "Sticky uitgeschakeld"],
   "Désactiver le mode sticky": ["Disable sticky mode", "Sticky-Modus deaktivieren", "Sticky-modus uitschakelen"],
   "Activer le mode sticky": ["Enable sticky mode", "Sticky-Modus aktivieren", "Sticky-modus inschakelen"],
+  "Rechercher ou choisir un actif…": ["Search or choose an asset…", "Asset suchen oder auswählen…", "Zoek of kies een actief…"],
+  "Afficher tous les actifs": ["Show all assets", "Alle Assets anzeigen", "Alle activa tonen"],
+  "Tous les actifs de la plateforme": ["All platform assets", "Alle Plattform-Assets", "Alle platformactiva"],
+  "catégories": ["categories", "Kategorien", "categorieën"],
+  "Aucun actif ne correspond à cette recherche.": ["No asset matches this search.", "Kein Asset entspricht dieser Suche.", "Geen actief komt overeen met deze zoekopdracht."],
 };
 const idx: Record<Lang, number> = { fr: 0, en: 0, de: 1, nl: 2 };
 export function translateText(value: string, lang: Lang) {
