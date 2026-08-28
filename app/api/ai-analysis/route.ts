@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const WINDOW_MS = 60_000;
-const MAX_REQUESTS = 6;
+const MAX_REQUESTS = 12;
 const requests = new Map<string, { count: number; resetAt: number }>();
 const locales = new Set(["fr", "en", "de", "nl"]);
 

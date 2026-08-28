@@ -18,6 +18,8 @@ import "./risk-warning.css";
 import "./top-forecast.css";
 import "./ai-analysis.css";
 import "./panorama-collapse.css";
+import "./interactive-guide.css";
+import "./openai-auto.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -60,6 +62,7 @@ import {
 } from "recharts";
 import { translateText, type Lang } from "@/lib/i18n";
 import { assets as marketAssets } from "@/lib/market-data";
+import { InteractiveGuide } from "./interactive-guide";
 
 type Row = {
   symbol: string;
@@ -355,6 +358,8 @@ export default function Home() {
   const [openAiAnalysis, setOpenAiAnalysis] = useState<OpenAiAnalysis | null>(null),
     [openAiLoading, setOpenAiLoading] = useState(false),
     [openAiError, setOpenAiError] = useState("");
+  const openAiRequest = useRef(0);
+  const openAiLastKey = useRef("");
   const [favorites, setFavorites] = useState<string[]>([]),
     [favoritesReady, setFavoritesReady] = useState(false);
   const [language, setLanguage] = useState<Lang>("fr");
@@ -889,14 +894,20 @@ export default function Home() {
   }, [active, news, timeframeComparisons, timeframe, bigdata?.bias]);
   const selectedForecast =
     forecasts.find((f) => f.period === timeframe) || forecasts[0];
-  const runOpenAiAnalysis = async () => {
+  const runOpenAiAnalysis = async (force = false, signal?: AbortSignal) => {
     if (!selectedForecast || active.unavailable) return;
+    const analysisKey = [active.key, timeframe, language, analysisRevision, active.last,
+      active.decision, selectedForecast.outlook, selectedForecast.reliability,
+      bigdata?.updatedAt || "", newsUpdated].join("|");
+    if (!force && openAiLastKey.current === analysisKey) return;
+    const requestId = ++openAiRequest.current;
     setOpenAiLoading(true);
     setOpenAiError("");
     try {
       const response = await fetch("/api/ai-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal,
         body: JSON.stringify({
           locale: language,
           timeframe,
@@ -919,18 +930,25 @@ export default function Home() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.code || "OPENAI_ERROR");
+      if (requestId !== openAiRequest.current) return;
       setOpenAiAnalysis({ ...data.analysis, generatedAt: data.generatedAt, model: data.model });
+      openAiLastKey.current = analysisKey;
     } catch (error) {
+      if (signal?.aborted || requestId !== openAiRequest.current) return;
       const code = error instanceof Error ? error.message : "OPENAI_ERROR";
       setOpenAiError(code);
     } finally {
-      setOpenAiLoading(false);
+      if (requestId === openAiRequest.current) setOpenAiLoading(false);
     }
   };
   useEffect(() => {
-    setOpenAiAnalysis(null);
-    setOpenAiError("");
-  }, [active.key, timeframe, language, analysisRevision]);
+    if (view !== "Prévisions" || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => void runOpenAiAnalysis(false, controller.signal), 1100);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [view, active.key, active.last, active.decision, timeframe, language, analysisRevision,
+    selectedForecast?.outlook, selectedForecast?.reliability, bigdata?.updatedAt,
+    newsUpdated, chartLoading, comparisonLoading, bigdataLoading]);
   const forecastChartData = forecasts.map((f) => ({
     period: timeframes.find(([key]) => key === f.period)?.[1] || f.period,
     range: f.low !== null && f.high !== null ? [f.low, f.high] : null,
@@ -1302,7 +1320,7 @@ export default function Home() {
             AI
           </span>
         </div>
-        <nav>
+        <nav data-guide="navigation">
           {nav.map(([Icon, name]) => (
             <button
               className={view === name ? "selected" : ""}
@@ -1322,7 +1340,7 @@ export default function Home() {
         </div>
       </aside>
       <main>
-        <header>
+        <header data-guide="search-language">
           <label>
             <Search />
             <input
@@ -1380,6 +1398,7 @@ export default function Home() {
         </section>
         <button
           className="forecastTopBanner"
+          data-guide="live-forecast"
           onClick={() => setView("Prévisions")}
           aria-label="Ouvrir les prévisions détaillées"
         >
@@ -1425,7 +1444,7 @@ export default function Home() {
             Voir le rapport complet <ExternalLink />
           </span>
         </button>
-        <section className="panoramaSection" aria-label="Panorama des marchés">
+        <section className="panoramaSection" aria-label="Panorama des marchés" data-guide="panorama">
           <button
             className="panoramaToggle"
             onClick={() => setPanoramaOpen((open) => !open)}
@@ -1576,7 +1595,7 @@ export default function Home() {
 
         {view === "Cockpit" && (
           <>
-            <section className="headline">
+            <section className="headline" data-guide="asset-summary">
               <div>
                 <i>
                   {active.kind === "Crypto"
@@ -1615,6 +1634,7 @@ export default function Home() {
                 </div>
                 <div
                   className="timeframePicker"
+                  data-guide="timeframes"
                   aria-label="Période du graphique"
                 >
                   {timeframes.map(([key, label]) => (
@@ -1694,7 +1714,7 @@ export default function Home() {
                   </div>
                 )}
               </section>
-              <section className="decision">
+              <section className="decision" data-guide="decision">
                 <div className="muted">
                   Décision IA · période {timeframeLabel}
                 </div>
@@ -1926,7 +1946,7 @@ export default function Home() {
                 )}
               </div>
             </section>
-            <section className="watch">
+            <section className="watch" data-guide="scanner">
               <div className="watchhead">
                 <h2>
                   Scanner IA global ·{" "}
@@ -1948,7 +1968,7 @@ export default function Home() {
         )}
 
         {view === "Opportunités" && (
-          <section className="module opportunities">
+          <section className="module opportunities" data-guide="opportunities">
             <div className="moduleHead">
               <div>
                 <p>RADAR D’OPPORTUNITÉS</p>
@@ -2121,7 +2141,7 @@ export default function Home() {
         )}
 
         {view === "Favoris" && (
-          <section className="module">
+          <section className="module" data-guide="favorites">
             <div className="moduleHead">
               <div>
                 <p>MA LISTE DE SURVEILLANCE</p>
@@ -2195,7 +2215,7 @@ export default function Home() {
         )}
 
         {view === "Marchés" && (
-          <section className="module" id="market-zone">
+          <section className="module" id="market-zone" data-guide="markets-module">
             <div className="moduleHead">
               <div>
                 <p>MARCHÉS</p>
@@ -2246,7 +2266,7 @@ export default function Home() {
         )}
 
         {view === "Scanner IA" && (
-          <section className="module">
+          <section className="module" data-guide="ai-scanner-module">
             <div className="moduleHead">
               <div>
                 <p>SCANNER IA</p>
@@ -2291,7 +2311,7 @@ export default function Home() {
         )}
 
         {view === "Prévisions" && (
-          <section className="module forecastModule">
+          <section className="module forecastModule" data-guide="forecast-module">
             <div className="moduleHead">
               <div>
                 <p>PRÉVISIONS MULTI-FACTEURS</p>
@@ -2647,7 +2667,7 @@ export default function Home() {
                 </div>
               </>
             )}
-            <section className="openAiPanel">
+            <section className="openAiPanel" data-guide="openai-analysis">
               <div className="openAiHead">
                 <div>
                   <Bot />
@@ -2656,10 +2676,13 @@ export default function Home() {
                     <small>Lecture explicative croisée : technique, prévision, Bigdata et actualités.</small>
                   </span>
                 </div>
-                <button onClick={() => void runOpenAiAnalysis()} disabled={openAiLoading || active.unavailable}>
-                  <Activity />
-                  {openAiLoading ? "Analyse en cours…" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant"}
-                </button>
+                <div className="openAiControls">
+                  <span className="openAiAuto"><i className={openAiLoading ? "pulse" : ""} />Actualisation automatique</span>
+                  <button onClick={() => void runOpenAiAnalysis(true)} disabled={openAiLoading || active.unavailable}>
+                    <Activity />
+                    {openAiLoading ? "Analyse en cours…" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant"}
+                  </button>
+                </div>
               </div>
               {openAiLoading && !openAiAnalysis && (
                 <div className="openAiEmpty"><Bot /><b>OpenAI inspecte le contexte actuel…</b><span>L’actif, la période et les dernières données sont analysés ensemble.</span></div>
@@ -2668,7 +2691,7 @@ export default function Home() {
                 <div className="openAiError">
                   <AlertTriangle />
                   <span><b>Analyse OpenAI indisponible</b><small>{openAiError === "OPENAI_LIMIT" || openAiError === "RATE_LIMITED" ? "Limite temporaire atteinte. Réessayez dans une minute." : openAiError === "OPENAI_NOT_CONFIGURED" ? "La clé serveur OPENAI_API_KEY n’est pas encore disponible pour ce déploiement." : "Vérifiez la clé, le crédit API ou réessayez dans quelques instants."}</small></span>
-                  <button onClick={() => void runOpenAiAnalysis()}>Réessayer</button>
+                  <button onClick={() => void runOpenAiAnalysis(true)}>Réessayer</button>
                 </div>
               )}
               {openAiAnalysis && (
@@ -2852,7 +2875,7 @@ export default function Home() {
         )}
 
         {view === "Backtest" && (
-          <section className="module">
+          <section className="module" data-guide="backtest">
             <div className="moduleHead">
               <div>
                 <p>LABORATOIRE DE STRATÉGIE</p>
@@ -2924,7 +2947,7 @@ export default function Home() {
         )}
 
         {view === "Passeports" && (
-          <section className="module">
+          <section className="module" data-guide="passports">
             <div className="moduleHead">
               <div>
                 <p>PASSEPORTS DE DÉCISION</p>
@@ -3013,7 +3036,7 @@ export default function Home() {
         )}
 
         {view === "Alertes" && (
-          <section className="module narrow">
+          <section className="module narrow" data-guide="alerts">
             <div className="moduleHead">
               <div>
                 <p>ALERTES</p>
@@ -3073,7 +3096,7 @@ export default function Home() {
         )}
 
         {view === "Actualités" && (
-          <section className="module">
+          <section className="module" data-guide="news">
             <div className="moduleHead">
               <div>
                 <p>ACTUALITÉS DES MARCHÉS</p>
@@ -3141,7 +3164,7 @@ export default function Home() {
         )}
 
         {view === "Journal" && (
-          <section className="module narrow">
+          <section className="module narrow" data-guide="journal">
             <div className="moduleHead">
               <div>
                 <p>JOURNAL</p>
@@ -3195,7 +3218,7 @@ export default function Home() {
         )}
 
         {view === "Paramètres" && (
-          <section className="module narrow">
+          <section className="module narrow" data-guide="settings">
             <div className="moduleHead">
               <div>
                 <p>PARAMÈTRES</p>
@@ -3442,6 +3465,7 @@ export default function Home() {
             rendement garanti
           </span>
         </footer>
+        <InteractiveGuide language={language} onNavigate={setView} />
       </main>
     </div>
   );
