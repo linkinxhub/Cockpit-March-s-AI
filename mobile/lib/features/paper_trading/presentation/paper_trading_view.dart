@@ -66,9 +66,9 @@ class _PaperTradingViewState extends State<PaperTradingView>{
       const Text('Simulation uniquement : aucun ordre réel n’est exécuté. Les notes de décision sont enregistrées séparément dans votre compte.'),
       const SizedBox(height:14),
       Card(child:Padding(padding:const EdgeInsets.all(14),child:Column(children:[
-        DropdownButtonFormField<String>(value:assetKey,decoration:const InputDecoration(labelText:'Actif'),items:widget.rows.map((r)=>DropdownMenuItem(value:r.key,child:Text(r.symbol))).toList(),onChanged:(v)=>setState(()=>assetKey=v)),
+        DropdownButtonFormField<String>(initialValue:assetKey,decoration:const InputDecoration(labelText:'Actif'),items:widget.rows.map((r)=>DropdownMenuItem(value:r.key,child:Text(r.symbol))).toList(),onChanged:(v)=>setState(()=>assetKey=v)),
         const SizedBox(height:8),
-        DropdownButtonFormField<String>(value:side,decoration:const InputDecoration(labelText:'Sens'),items:['BUY','SELL'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)setState(()=>side=v);}),
+        DropdownButtonFormField<String>(initialValue:side,decoration:const InputDecoration(labelText:'Sens'),items:['BUY','SELL'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)setState(()=>side=v);}),
         const SizedBox(height:8),
         TextField(controller:quantity,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Quantité')),
         const SizedBox(height:8),
