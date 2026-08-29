@@ -408,7 +408,7 @@ export default function Home() {
     >([]),
     [note, setNote] = useState(""),
     [journal, setJournal] = useState<
-      { id: number; text: string; date: string }[]
+      { id: string; text: string; assetKey: string | null; createdAt: number }[]
     >([]);
   const [profile, setProfile] = useState<TraderProfile>({
       level: "Débutant",
@@ -419,7 +419,8 @@ export default function Home() {
     }),
     [passports, setPassports] = useState<Passport[]>([]),
     [decisionEvents, setDecisionEvents] = useState<DecisionEvent[]>([]),
-    [storageReady, setStorageReady] = useState(false);
+    [storageReady, setStorageReady] = useState(false),
+    [workspaceReady, setWorkspaceReady] = useState(false);
   const decisionSnapshot = useRef<Record<string, string>>({});
   const [news, setNews] = useState<Record<string, News[]>>({}),
     [newsUpdated, setNewsUpdated] = useState(""),
@@ -612,29 +613,84 @@ export default function Home() {
     return () => controller.abort();
   }, [active.key, timeframe, analysisRevision]);
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("cockpit-favorites");
-      setFavorites(saved ? JSON.parse(saved) : []);
-    } catch {
-    } finally {
-      setFavoritesReady(true);
-    }
+    const controller = new AbortController();
+    fetch("/api/user-sync/snapshot", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) return { watchlist: [] };
+        if (!response.ok) throw new Error("watchlist_load_failed");
+        return response.json();
+      })
+      .then((snapshot) =>
+        setFavorites(Array.isArray(snapshot?.watchlist) ? snapshot.watchlist : []),
+      )
+      .catch((error) => {
+        if (error?.name !== "AbortError") setFavorites([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setFavoritesReady(true);
+      });
+    return () => controller.abort();
   }, []);
   useEffect(() => {
-    if (favoritesReady)
-      localStorage.setItem("cockpit-favorites", JSON.stringify(favorites));
-  }, [favorites, favoritesReady]);
+    const controller = new AbortController();
+    fetch("/api/user-sync/decision-notes", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) return { notes: [] };
+        if (!response.ok) throw new Error("journal_load_failed");
+        return response.json();
+      })
+      .then((payload) =>
+        setJournal(
+          Array.isArray(payload?.notes)
+            ? payload.notes.map((item: { id: unknown; text?: unknown; assetKey?: unknown; createdAt?: unknown }) => ({
+                id: String(item.id),
+                text: String(item.text || ""),
+                assetKey: item.assetKey == null ? null : String(item.assetKey),
+                createdAt: Number(item.createdAt || 0),
+              }))
+            : [],
+        ),
+      )
+      .catch((error) => {
+        if (error?.name !== "AbortError") setJournal([]);
+      });
+    return () => controller.abort();
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/user-sync/workspace", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) return { workspace: null };
+        if (!response.ok) throw new Error("workspace_load_failed");
+        return response.json();
+      })
+      .then((payload) => {
+        const workspace = payload?.workspace;
+        if (!workspace) return;
+        if (workspace.profile) setProfile(workspace.profile);
+        if (Array.isArray(workspace.priceAlerts)) setAlerts(workspace.priceAlerts);
+        if (Array.isArray(workspace.passports)) setPassports(workspace.passports);
+      })
+      .catch(() => {})
+      .finally(() => { if (!controller.signal.aborted) setWorkspaceReady(true); });
+    return () => controller.abort();
+  }, []);
+  useEffect(() => {
+    if (!workspaceReady) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetch("/api/user-sync/workspace", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, priceAlerts: alerts, passports }),
+        signal: controller.signal,
+      }).catch(() => {});
+    }, 300);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [profile, alerts, passports, workspaceReady]);
   useEffect(() => {
     try {
-      const a = localStorage.getItem("cockpit-alerts-v1"),
-        j = localStorage.getItem("cockpit-journal-v1"),
-        p = localStorage.getItem("cockpit-profile-v1"),
-        d = localStorage.getItem("cockpit-passports-v1"),
-        e = localStorage.getItem("cockpit-decision-events-v1");
-      if (a) setAlerts(JSON.parse(a));
-      if (j) setJournal(JSON.parse(j));
-      if (p) setProfile(JSON.parse(p));
-      if (d) setPassports(JSON.parse(d));
+      const e = localStorage.getItem("cockpit-decision-events-v1");
       if (e) setDecisionEvents(JSON.parse(e));
     } catch {
     } finally {
@@ -643,12 +699,8 @@ export default function Home() {
   }, []);
   useEffect(() => {
     if (!storageReady) return;
-    localStorage.setItem("cockpit-alerts-v1", JSON.stringify(alerts));
-    localStorage.setItem("cockpit-journal-v1", JSON.stringify(journal));
-    localStorage.setItem("cockpit-profile-v1", JSON.stringify(profile));
-    localStorage.setItem("cockpit-passports-v1", JSON.stringify(passports));
     localStorage.setItem("cockpit-decision-events-v1", JSON.stringify(decisionEvents));
-  }, [alerts, journal, profile, passports, decisionEvents, storageReady]);
+  }, [decisionEvents, storageReady]);
   useEffect(() => {
     const saved = localStorage.getItem("cockpit-language") as Lang | null;
     if (saved && ["fr", "en", "de", "nl"].includes(saved)) setLanguage(saved);
@@ -742,17 +794,39 @@ export default function Home() {
     ]);
     setAlertPrice("");
   };
-  const addNote = () => {
-    if (!note.trim()) return;
-    setJournal((j) => [
-      {
-        id: Date.now(),
-        text: note.trim(),
-        date: new Date().toLocaleString(locale),
-      },
-      ...j,
-    ]);
-    setNote("");
+  const addNote = async () => {
+    const text = note.trim();
+    if (!text) return;
+    try {
+      const response = await fetch("/api/user-sync/decision-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetKey: active.key, text }),
+      });
+      if (!response.ok) throw new Error("journal_save_failed");
+      const payload = await response.json();
+      const saved = payload?.note;
+      if (!saved) throw new Error("journal_save_failed");
+      setJournal((items) => [{
+        id: String(saved.id),
+        text: String(saved.text || text),
+        assetKey: saved.assetKey == null ? active.key : String(saved.assetKey),
+        createdAt: Number(saved.createdAt || Date.now()),
+      }, ...items]);
+      setNote("");
+    } catch {
+      // Keep the draft visible so the user can retry without losing text.
+    }
+  };
+  const removeJournalNote = async (id: string) => {
+    const previous = journal;
+    setJournal((items) => items.filter((item) => item.id !== id));
+    try {
+      const response = await fetch("/api/user-sync/decision-notes?id=" + encodeURIComponent(id), { method: "DELETE" });
+      if (!response.ok) throw new Error("journal_delete_failed");
+    } catch {
+      setJournal(previous);
+    }
   };
   const goMarket = (category: string) => {
     setKind(category);
@@ -781,10 +855,26 @@ export default function Home() {
       .querySelectorAll(".analysisGrid article")
       [index]?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
-  const toggleFavorite = (key: string) =>
-    setFavorites((f) =>
-      f.includes(key) ? f.filter((x) => x !== key) : [...f, key],
-    );
+  const toggleFavorite = async (key: string) => {
+    if (!favoritesReady) return;
+    const previous = favorites;
+    const next = previous.includes(key)
+      ? previous.filter((item) => item !== key)
+      : [...previous, key];
+    setFavorites(next);
+    try {
+      const response = await fetch("/api/user-sync/watchlist", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetKeys: next }),
+      });
+      if (!response.ok) throw new Error("watchlist_save_failed");
+      const payload = await response.json();
+      setFavorites(Array.isArray(payload?.watchlist) ? payload.watchlist : next);
+    } catch {
+      setFavorites(previous);
+    }
+  };
   const savePassport = () => {
     const stop =
         active.decision === "ACHETER"
@@ -1136,9 +1226,22 @@ export default function Home() {
           exitSignalPrice:signal?.action === "SORTIE" ? point.price : null,
         };
       }),
-      visibleSignals = signals.filter((signal) => signalByTime.has(signal.t) && visibleData.some((point) => point.t === signal.t));
+      focusData = visibleData.slice(-48),
+      axisValues = focusData.flatMap((point) => [point.price, point.tenkan, point.kijun, point.spanA, point.spanB, point.chikou]).filter((value): value is number => typeof value === "number" && Number.isFinite(value)),
+      axisMin = axisValues.length ? Math.min(...axisValues) : latest.price,
+      axisMax = axisValues.length ? Math.max(...axisValues) : latest.price,
+      axisSpan = Math.max(axisMax - axisMin, Math.abs(latest.price) * .002),
+      axisPadding = Math.max(axisSpan * .08, Math.abs(latest.price) * .001),
+      yDomain:[number,number] = [axisMin - axisPadding, axisMax + axisPadding],
+      data = visibleData.map((point) => ({
+        ...point,
+        buySignalPrice:point.buySignalPrice !== null && point.buySignalPrice >= yDomain[0] && point.buySignalPrice <= yDomain[1] ? point.buySignalPrice : null,
+        sellSignalPrice:point.sellSignalPrice !== null && point.sellSignalPrice >= yDomain[0] && point.sellSignalPrice <= yDomain[1] ? point.sellSignalPrice : null,
+        exitSignalPrice:point.exitSignalPrice !== null && point.exitSignalPrice >= yDomain[0] && point.exitSignalPrice <= yDomain[1] ? point.exitSignalPrice : null,
+      })),
+      visibleSignals = signals.filter((signal) => visibleData.some((point) => point.t === signal.t) && signal.price >= yDomain[0] && signal.price <= yDomain[1]);
     return {
-      data:visibleData, tenkan:latest.tenkan, kijun:latest.kijun, spanA:latest.spanA, spanB:latest.spanB,
+      data, yDomain, tenkan:latest.tenkan, kijun:latest.kijun, spanA:latest.spanA, spanB:latest.spanB,
       chikou:chart.at(-27)?.price ?? null, cloudPosition, cross, cloudDirection, cloudWidth, shape, macd,
       bollingerUpper, bollingerLower, atr, signals, visibleSignals, evaluatedSignals:evaluatedSignals.length,
       winRate:evaluatedSignals.length ? wins / evaluatedSignals.length * 100 : null, averageReturn,
@@ -2636,7 +2739,7 @@ export default function Home() {
                 <p>MA LISTE DE SURVEILLANCE</p>
                 <h1>Favoris et opportunités suivies</h1>
                 <span>
-                  Vos favoris sont conservés sur cet appareil. Cliquez sur
+                  Vos favoris sont synchronisés avec votre compte Web et Flutter. Cliquez sur
                   l’étoile d’un actif pour l’ajouter ou le retirer.
                 </span>
               </div>
@@ -2854,7 +2957,7 @@ export default function Home() {
                         {([['price','Prix'],['cloud','Nuage'],['lines','Lignes'],['signals','Signaux']] as const).map(([layer,label]) => <button type="button" key={layer} aria-pressed={ichimokuLayers[layer]} className={ichimokuLayers[layer] ? "active" : ""} onClick={() => setIchimokuLayers((current) => ({...current,[layer]:!current[layer]}))}>{label}</button>)}
                       </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={380}><ComposedChart data={technicalStudy.data} margin={{top:12,right:10,left:0,bottom:4}}><CartesianGrid stroke="#1e3039" vertical={false}/><XAxis dataKey="t" tickFormatter={formatChartTime} minTickGap={40} tick={{fill:"#728690",fontSize:9}} axisLine={false}/><YAxis orientation="right" domain={["auto","auto"]} tick={{fill:"#82959f",fontSize:10}}/><Tooltip content={(props) => <IchimokuTooltip {...props} locale={locale}/>}/>{ichimokuLayers.price && <Area type="monotone" dataKey="price" stroke="#f3f7f8" fill="#dce8ec12" dot={false} strokeWidth={2.4} name={`${active.symbol} · prix`}/>} {ichimokuLayers.cloud && <><Area type="monotone" dataKey="spanA" stroke="#2edb99" fill="#2edb9926" connectNulls name="Senkou A"/><Area type="monotone" dataKey="spanB" stroke="#ff6972" fill="#ff697218" connectNulls name="Senkou B"/></>} {ichimokuLayers.lines && <><Line type="monotone" dataKey="tenkan" stroke="#38a8ff" dot={false} strokeWidth={1.5} connectNulls name="Tenkan 9"/><Line type="monotone" dataKey="kijun" stroke="#f3ad22" dot={false} strokeWidth={1.5} connectNulls name="Kijun 26"/><Line type="monotone" dataKey="chikou" stroke="#b989ff" dot={false} strokeWidth={1.2} strokeDasharray="4 3" connectNulls name="Chikou 26"/></>} {ichimokuLayers.signals && <><Line dataKey="buySignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Entrée achat"/><Line dataKey="sellSignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Entrée vente"/><Line dataKey="exitSignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Sortie"/></>}</ComposedChart></ResponsiveContainer>
+                    <ResponsiveContainer width="100%" height={380}><ComposedChart data={technicalStudy.data} margin={{top:12,right:10,left:0,bottom:4}}><CartesianGrid stroke="#1e3039" vertical={false}/><XAxis dataKey="t" tickFormatter={formatChartTime} minTickGap={40} tick={{fill:"#728690",fontSize:9}} axisLine={false}/><YAxis orientation="right" domain={technicalStudy.yDomain} allowDataOverflow tick={{fill:"#82959f",fontSize:10}}/><Tooltip content={(props) => <IchimokuTooltip {...props} locale={locale}/>}/>{ichimokuLayers.price && <Area type="monotone" dataKey="price" stroke="#f3f7f8" fill="#dce8ec12" dot={false} strokeWidth={2.4} name={`${active.symbol} · prix`}/>} {ichimokuLayers.cloud && <><Area type="monotone" dataKey="spanA" stroke="#2edb99" fill="#2edb9926" connectNulls name="Senkou A"/><Area type="monotone" dataKey="spanB" stroke="#ff6972" fill="#ff697218" connectNulls name="Senkou B"/></>} {ichimokuLayers.lines && <><Line type="monotone" dataKey="tenkan" stroke="#38a8ff" dot={false} strokeWidth={1.5} connectNulls name="Tenkan 9"/><Line type="monotone" dataKey="kijun" stroke="#f3ad22" dot={false} strokeWidth={1.5} connectNulls name="Kijun 26"/><Line type="monotone" dataKey="chikou" stroke="#b989ff" dot={false} strokeWidth={1.2} strokeDasharray="4 3" connectNulls name="Chikou 26"/></>} {ichimokuLayers.signals && <><Line dataKey="buySignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Entrée achat"/><Line dataKey="sellSignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Entrée vente"/><Line dataKey="exitSignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Sortie"/></>}</ComposedChart></ResponsiveContainer>
                     <div className="ichimokuLegend"><span className="priceLine">{active.symbol} · prix réel</span><span className="tenkanLine">Tenkan 9</span><span className="kijunLine">Kijun 26</span><span className="chikouLine">Chikou 26</span><span className="spanALine">Senkou A</span><span className="spanBLine">Senkou B</span></div>
                   </div>
                   <div className="ichimokuExplanation"><h3>Pourquoi ce verdict ?</h3><p>Le prix est <b>{technicalStudy.cloudPosition} le nuage</b>. Le croisement Tenkan/Kijun est <b className={technicalStudy.cross === "haussier" ? "buy" : "sell"}>{technicalStudy.cross}</b> et le nuage projeté est <b className={technicalStudy.cloudDirection === "haussier" ? "buy" : "sell"}>{technicalStudy.cloudDirection}</b>.</p><p>La forme est un <b>{technicalStudy.shape}</b>, épais d’environ <b>{technicalStudy.cloudWidth.toFixed(2)} %</b> du cours. Un nuage épais forme une zone plus résistante ; un nuage comprimé augmente le risque de changement de régime.</p><div className="ichimokuFacts"><span>Tenkan-sen<b>{number(technicalStudy.tenkan,5)}</b><small>Équilibre rapide · 9 périodes</small></span><span>Kijun-sen<b>{number(technicalStudy.kijun,5)}</b><small>Équilibre de fond · 26 périodes</small></span><span>Senkou A / B<b>{number(technicalStudy.spanA,5)} / {number(technicalStudy.spanB,5)}</b><small>Limites du nuage projeté</small></span><span>Chikou théorique<b>{number(technicalStudy.chikou,5)}</b><small>Comparaison à 26 périodes</small></span></div><div className="ichimokuVerdict"><ShieldCheck/><p><b>Condition de validation :</b> {technicalStudy.bias === "HAUSSIER" ? "maintien du prix au-dessus du nuage et Tenkan au-dessus de Kijun." : technicalStudy.bias === "BAISSIER" ? "maintien du prix sous le nuage et Tenkan sous Kijun." : "attendre une sortie nette du nuage et un croisement cohérent."}</p></div></div>
@@ -3764,8 +3867,7 @@ export default function Home() {
                 <p>JOURNAL</p>
                 <h1>Journal de décisions</h1>
                 <span>
-                  Notez votre raisonnement avant d’agir pour garder une méthode
-                  disciplinée.
+                  Notez votre raisonnement avant d’agir. Le journal est synchronisé avec votre compte Web et Flutter.
                 </span>
               </div>
             </div>
@@ -3793,12 +3895,10 @@ export default function Home() {
                     <BookOpen />
                     <span>
                       <b>{j.text}</b>
-                      <small>{j.date}</small>
+                      <small>{new Date(j.createdAt).toLocaleString(locale)}{j.assetKey ? " · " + j.assetKey : ""}</small>
                     </span>
                     <button
-                      onClick={() =>
-                        setJournal((x) => x.filter((v) => v.id !== j.id))
-                      }
+                      onClick={() => void removeJournalNote(j.id)}
                     >
                       <Trash2 />
                     </button>
@@ -3829,8 +3929,7 @@ export default function Home() {
                 <div>
                   <h2>Mon profil de risque</h2>
                   <p>
-                    Ces valeurs restent enregistrées uniquement dans ce
-                    navigateur.
+                    Ces valeurs sont synchronisées avec votre compte Web et mobile via le stockage Neon sécurisé.
                   </p>
                 </div>
               </div>

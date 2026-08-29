@@ -1,0 +1,52 @@
+name: Web Flutter Sync Guardian
+
+on:
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'app/api/**'
+      - 'app/page.tsx'
+      - 'mobile/**'
+      - 'vercel.json'
+      - 'tests/sync-contract.test.mjs'
+      - 'tests/notification-contract.test.mjs'
+      - 'tests/migration-contract.test.mjs'
+      - 'tests/user-sync-smoke-contract.test.mjs'
+      - 'tests/main-watchlist-contract.test.mjs'
+      - 'tests/decision-journal-contract.test.mjs'
+      - 'tests/ichimoku-chart-contract.test.mjs'
+      - 'tests/workspace-contract.test.mjs'
+      - 'tests/vercel-deployment-contract.test.mjs'
+      - '.github/workflows/manual-vercel-preview.yml'
+      - '.github/workflows/web-flutter-sync.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'app/api/**'
+      - 'app/page.tsx'
+      - 'mobile/**'
+      - 'vercel.json'
+      - 'tests/sync-contract.test.mjs'
+      - 'tests/notification-contract.test.mjs'
+      - 'tests/migration-contract.test.mjs'
+      - 'tests/user-sync-smoke-contract.test.mjs'
+      - 'tests/main-watchlist-contract.test.mjs'
+      - 'tests/decision-journal-contract.test.mjs'
+      - 'tests/ichimoku-chart-contract.test.mjs'
+      - 'tests/workspace-contract.test.mjs'
+      - 'tests/vercel-deployment-contract.test.mjs'
+      - '.github/workflows/manual-vercel-preview.yml'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Web ↔ Flutter contracts
+        run: node --test tests/sync-contract.test.mjs tests/notification-contract.test.mjs tests/migration-contract.test.mjs tests/user-sync-smoke-contract.test.mjs tests/main-watchlist-contract.test.mjs tests/decision-journal-contract.test.mjs tests/ichimoku-chart-contract.test.mjs tests/workspace-contract.test.mjs tests/vercel-deployment-contract.test.mjs
+      - name: Confirm shared indicator engine is present
+        run: test -s lib/indicator-engine.ts && test -s app/api/indicators/route.ts && test -s mobile/lib/features/indicators/data/indicator_repository.dart

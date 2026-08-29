@@ -1,0 +1,5 @@
+import{assets}from'@/lib/market-data';
+import{getSharedUserIdentity}from'@/lib/user-identity';
+import{getUserSyncStore,userSyncStoreConfigured}from'@/lib/user-sync-store';
+const valid:Set<string>=new Set(assets.map(a=>a.key as string));
+export async function PUT(req:Request){const user=await getSharedUserIdentity();if(!user)return Response.json({error:'authentication_required'},{status:401});if(!userSyncStoreConfigured())return Response.json({error:'storage_not_configured'},{status:503});let body:any;try{body=await req.json()}catch{return Response.json({error:'invalid_json'},{status:400})}const rawKeys:Array<unknown>=Array.isArray(body?.assetKeys)?body.assetKeys:[];const assetKeys:string[]=[...new Set(rawKeys.filter((x):x is string=>typeof x==='string'&&valid.has(x)))];if(!Array.isArray(body?.assetKeys))return Response.json({error:'assetKeys_required'},{status:400});try{await getUserSyncStore().setWatchlist(user.id,assetKeys);return Response.json({ok:true,watchlist:assetKeys},{headers:{'Cache-Control':'private, no-store'}})}catch{return Response.json({error:'storage_unavailable'},{status:503})}}
