@@ -101,3 +101,19 @@ export const billingWebhookEvents=pgTable('billing_webhook_events',{
  eventType:text('event_type').notNull(),
  processedAt:bigint('processed_at',{mode:'number'}).notNull(),
 });
+
+export const webCredentials=pgTable('web_credentials',{
+ userId:text('user_id').primaryKey(),
+ email:text('email').notNull().unique(),
+ passwordHash:text('password_hash').notNull(),
+ createdAt:bigint('created_at',{mode:'number'}).notNull(),
+ updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
+});
+
+export const mobilePairingCodes=pgTable('mobile_pairing_codes',{
+ codeHash:text('code_hash').primaryKey(),
+ userId:text('user_id').notNull(),
+ expiresAt:bigint('expires_at',{mode:'number'}).notNull(),
+ consumedAt:bigint('consumed_at',{mode:'number'}),
+ createdAt:bigint('created_at',{mode:'number'}).notNull(),
+});
