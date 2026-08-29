@@ -45,6 +45,15 @@ export const notificationDevices=pgTable('notification_devices',{
  updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
 });
 
+export const notificationDeliveries=pgTable('notification_deliveries',{
+ userId:text('user_id').notNull(),
+ eventId:text('event_id').notNull(),
+ deviceId:text('device_id').notNull(),
+ provider:text('provider').notNull(),
+ status:text('status').notNull(),
+ deliveredAt:bigint('delivered_at',{mode:'number'}).notNull(),
+},t=>[primaryKey({columns:[t.userId,t.eventId,t.deviceId]})]);
+
 export const paperTrades=pgTable('paper_trades',{
  id:text('id').primaryKey(),
  userId:text('user_id').notNull(),
