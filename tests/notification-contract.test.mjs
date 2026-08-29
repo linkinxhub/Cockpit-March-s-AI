@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const policy=fs.readFileSync('lib/user-alert-policy.ts','utf8');
 const dispatch=fs.readFileSync('lib/push-dispatch.ts','utf8');
 const deviceRoute=fs.readFileSync('app/api/user-sync/notification-devices/route.ts','utf8');
+const preferencesRoute=fs.readFileSync('app/api/user-sync/notification-preferences/route.ts','utf8');
 const personalizedRoute=fs.readFileSync('app/api/notifications/personalized/route.ts','utf8');
 const previewRoute=fs.readFileSync('app/api/notifications/dispatch-preview/route.ts','utf8');
 const publicKeyRoute=fs.readFileSync('app/api/notifications/web-push-public-key/route.ts','utf8');
@@ -13,7 +14,8 @@ const serviceWorker=fs.readFileSync('public/push-sw.js','utf8');
 const flutterUserSync=fs.readFileSync('mobile/lib/features/sync/data/user_sync_repository.dart','utf8');
 const flutterPreferences=fs.readFileSync('mobile/lib/features/news/presentation/notification_preferences_view.dart','utf8');
 const schema=fs.readFileSync('db/schema.ts','utf8');
-const migration=fs.readFileSync('db/migrations/0002_notification_devices.sql','utf8');
+const deviceMigration=fs.readFileSync('db/migrations/0002_notification_devices.sql','utf8');
+const timezoneMigration=fs.readFileSync('db/migrations/0003_notification_timezone.sql','utf8');
 const manifest=fs.readFileSync('app/api/sync/manifest/route.ts','utf8');
 
 test('personalized alert policy enforces user preferences',()=>{
@@ -25,9 +27,22 @@ test('personalized alert policy enforces user preferences',()=>{
  assert.match(policy,/below_minimum_severity/);
 });
 
+test('quiet hours use user timezone instead of server local time',()=>{
+ assert.match(policy,/Intl\.DateTimeFormat/);
+ assert.match(policy,/timeZone:prefs\.timeZone/);
+ assert.match(policy,/utcOffsetMinutes/);
+ assert.doesNotMatch(policy,/now\.getHours\(\)/);
+ assert.match(preferencesRoute,/validTimeZone/);
+ assert.match(preferencesRoute,/utcOffsetMinutes/);
+ assert.match(schema,/time_zone/);
+ assert.match(timezoneMigration,/utc_offset_minutes/);
+ assert.match(webNotifications,/resolvedOptions\(\)\.timeZone/);
+ assert.match(flutterUserSync,/timeZoneOffset\.inMinutes/);
+});
+
 test('device registry is durable and ownership protected',()=>{
  assert.match(schema,/notification_devices/);
- assert.match(migration,/notification_devices/);
+ assert.match(deviceMigration,/notification_devices/);
  assert.match(deviceRoute,/getSharedUserIdentity/);
  assert.match(deviceRoute,/device_id_conflict/);
  assert.match(deviceRoute,/web_push_subscription_required/);
@@ -40,7 +55,7 @@ test('push planning requires registered targets and configured providers',()=>{
  assert.match(dispatch,/no_registered_device/);
  assert.match(dispatch,/provider_not_configured/);
  assert.match(dispatch,/targets/);
- assert.match(dispatch,/deepLink/);
+ assert.match(dispatch,/\/notifications\?asset=/);
  assert.match(previewRoute,/listNotificationDevices/);
  assert.match(previewRoute,/dry-run/);
 });
@@ -58,6 +73,8 @@ test('web push browser registration is opt-in and server-backed',()=>{
  assert.match(webNotifications,/pushManager\.subscribe/);
  assert.match(webNotifications,/\/api\/user-sync\/notification-devices/);
  assert.match(webNotifications,/crypto\.subtle\.digest/);
+ assert.match(webNotifications,/assetFilter/);
+ assert.match(webNotifications,/focusEvent/);
  assert.doesNotMatch(webNotifications,/localStorage|sessionStorage/);
  assert.match(serviceWorker,/showNotification/);
  assert.match(serviceWorker,/notificationclick/);
@@ -71,9 +88,10 @@ test('flutter can inspect and revoke registered push devices',()=>{
  assert.match(flutterPreferences,/removeNotificationDevice/);
 });
 
-test('manifest publishes notification contract v2',()=>{
- assert.match(manifest,/schemaVersion:'2\.0\.0'/);
+test('manifest publishes notification contract v2.1',()=>{
+ assert.match(manifest,/schemaVersion:'2\.1\.0'/);
  for(const endpoint of ['/api/user-sync/notification-devices','/api/notifications/personalized','/api/notifications/dispatch-preview'])assert.match(manifest,new RegExp(endpoint.replaceAll('/','\\/')));
  assert.match(manifest,/notificationDevices/);
+ assert.match(manifest,/timeZoneAware/);
  assert.match(manifest,/dry-run-until-provider-delivery/);
 });
