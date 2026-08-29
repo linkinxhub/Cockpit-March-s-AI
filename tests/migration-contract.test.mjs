@@ -7,6 +7,7 @@ const runner=fs.readFileSync('lib/user-sync-migration-runner.ts','utf8');
 const migration1=fs.readFileSync('db/migrations/0001_user_sync_postgres.sql','utf8');
 const migration2=fs.readFileSync('db/migrations/0002_notification_devices.sql','utf8');
 const migration3=fs.readFileSync('db/migrations/0003_notification_timezone.sql','utf8');
+const migration4=fs.readFileSync('db/migrations/0004_decision_notes.sql','utf8');
 
 test('migration endpoint is preview and branch restricted',()=>{
  assert.match(route,/VERCEL_ENV!=='preview'/);
@@ -17,9 +18,10 @@ test('migration endpoint is preview and branch restricted',()=>{
 });
 
 test('migration runner is idempotent and matches versioned schema intent',()=>{
- for(const table of ['user_profiles','watchlist_items','notification_preferences','notification_reads','notification_devices','paper_trades'])assert.match(runner,new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+ for(const table of ['user_profiles','watchlist_items','notification_preferences','notification_reads','notification_devices','paper_trades','decision_notes'])assert.match(runner,new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
  assert.match(runner,/CREATE INDEX IF NOT EXISTS watchlist_items_user_idx/);
  assert.match(runner,/CREATE INDEX IF NOT EXISTS notification_devices_user_idx/);
+ assert.match(runner,/CREATE INDEX IF NOT EXISTS decision_notes_user_idx/);
  assert.match(runner,/ADD COLUMN IF NOT EXISTS time_zone/);
  assert.match(runner,/ADD COLUMN IF NOT EXISTS utc_offset_minutes/);
  assert.match(runner,/getUserSyncHealth/);
@@ -28,6 +30,8 @@ test('migration runner is idempotent and matches versioned schema intent',()=>{
  assert.match(migration2,/CREATE TABLE IF NOT EXISTS notification_devices/);
  assert.match(migration3,/ADD COLUMN IF NOT EXISTS time_zone/);
  assert.match(migration3,/ADD COLUMN IF NOT EXISTS utc_offset_minutes/);
+ assert.match(migration4,/CREATE TABLE IF NOT EXISTS decision_notes/);
+ assert.match(migration4,/CREATE INDEX IF NOT EXISTS decision_notes_user_idx/);
 });
 
 test('migration endpoint never exposes connection secrets',()=>{
