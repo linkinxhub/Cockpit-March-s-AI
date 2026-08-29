@@ -1,0 +1,3 @@
+import{getSharedUserIdentity}from'@/lib/user-identity';
+import{getBillingState,hasPaidEntitlement}from'@/lib/billing-store';
+export async function GET(){const user=await getSharedUserIdentity();if(!user)return Response.json({error:'authentication_required'},{status:401});try{const state=await getBillingState(user.id);return Response.json({plan:state.plan,status:state.status,active:hasPaidEntitlement(state),currentPeriodEnd:state.currentPeriodEnd,cancelAtPeriodEnd:state.cancelAtPeriodEnd,hasCustomer:Boolean(state.stripeCustomerId)},{headers:{'Cache-Control':'no-store'}});}catch(e){return Response.json({error:e instanceof Error?e.message:'billing_status_failed'},{status:500});}}
