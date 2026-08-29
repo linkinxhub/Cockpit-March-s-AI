@@ -14,4 +14,6 @@ export async function upsertBillingState(input:BillingState){await sql()`insert 
 
 export async function findUserIdByStripeCustomer(customerId:string){const rows=await sql()`select user_id from billing_subscriptions where stripe_customer_id=${customerId} limit 1`;return rows[0]?.user_id?String(rows[0].user_id):null;}
 export async function findUserIdByStripeSubscription(subscriptionId:string){const rows=await sql()`select user_id from billing_subscriptions where stripe_subscription_id=${subscriptionId} limit 1`;return rows[0]?.user_id?String(rows[0].user_id):null;}
+export async function webhookEventProcessed(eventId:string){const rows=await sql()`select 1 from billing_webhook_events where event_id=${eventId} limit 1`;return Boolean(rows.length);}
+export async function markWebhookEventProcessed(eventId:string,eventType:string){await sql()`insert into billing_webhook_events(event_id,event_type,processed_at) values(${eventId},${eventType},${Date.now()}) on conflict(event_id) do nothing`;}
 export function hasPaidEntitlement(state:BillingState){return(state.plan==='PRO'||state.plan==='INSTITUTIONAL')&&['trialing','active'].includes(state.status);}
