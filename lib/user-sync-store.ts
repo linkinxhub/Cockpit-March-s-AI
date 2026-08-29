@@ -10,6 +10,8 @@ export type RegisterNotificationDevice={id:string;platform:NotificationDevicePla
 export type PaperTradeSide='BUY'|'SELL';
 export type PaperTrade={id:string;userId:string;assetKey:string;side:PaperTradeSide;quantity:string;entryPrice:string;exitPrice:string|null;openedAt:number;closedAt:number|null;note:string|null};
 export type NewPaperTrade={id:string;assetKey:string;side:PaperTradeSide;quantity:string;entryPrice:string;openedAt:number;note:string|null};
+export type DecisionNote={id:string;userId:string;assetKey:string|null;text:string;createdAt:number;updatedAt:number};
+export type NewDecisionNote={id:string;assetKey:string|null;text:string;createdAt:number};
 
 export interface UserSyncStore{
  getSnapshot(userId:string):Promise<UserSyncSnapshot>;
@@ -23,6 +25,9 @@ export interface UserSyncStore{
  createPaperTrade(userId:string,value:NewPaperTrade):Promise<PaperTrade>;
  closePaperTrade(userId:string,id:string,exitPrice:string,closedAt:number):Promise<PaperTrade|null>;
  deletePaperTrade(userId:string,id:string):Promise<boolean>;
+ listDecisionNotes(userId:string):Promise<DecisionNote[]>;
+ createDecisionNote(userId:string,value:NewDecisionNote):Promise<DecisionNote>;
+ deleteDecisionNote(userId:string,id:string):Promise<boolean>;
 }
 
 export const defaultNotificationPreferences:NotificationPreferences={minimumSeverity:'IMPORTANT',watchedOnly:true,pushEnabled:false,quietHoursStart:null,quietHoursEnd:null,timeZone:null,utcOffsetMinutes:null};
@@ -31,6 +36,7 @@ function connectionString(){return process.env.DATABASE_URL||process.env.POSTGRE
 export function userSyncStoreConfigured(){return Boolean(connectionString());}
 function rowToPaperTrade(row:any):PaperTrade{return{id:String(row.id),userId:String(row.user_id),assetKey:String(row.asset_key),side:String(row.side) as PaperTradeSide,quantity:String(row.quantity),entryPrice:String(row.entry_price),exitPrice:row.exit_price==null?null:String(row.exit_price),openedAt:Number(row.opened_at),closedAt:row.closed_at==null?null:Number(row.closed_at),note:row.note==null?null:String(row.note)};}
 function rowToNotificationDevice(row:any):NotificationDevice{return{id:String(row.id),userId:String(row.user_id),platform:String(row.platform) as NotificationDevicePlatform,provider:String(row.provider) as NotificationDeviceProvider,token:row.token==null?null:String(row.token),endpoint:row.endpoint==null?null:String(row.endpoint),p256dh:row.p256dh==null?null:String(row.p256dh),auth:row.auth==null?null:String(row.auth),createdAt:Number(row.created_at),updatedAt:Number(row.updated_at)};}
+function rowToDecisionNote(row:any):DecisionNote{return{id:String(row.id),userId:String(row.user_id),assetKey:row.asset_key==null?null:String(row.asset_key),text:String(row.note_text),createdAt:Number(row.created_at),updatedAt:Number(row.updated_at)};}
 
 function postgresStore():UserSyncStore{
  const url=connectionString();
@@ -70,6 +76,9 @@ function postgresStore():UserSyncStore{
   async createPaperTrade(userId,value){const rows=await sql`insert into paper_trades(id,user_id,asset_key,side,quantity,entry_price,opened_at,note) values(${value.id},${userId},${value.assetKey},${value.side},${value.quantity},${value.entryPrice},${value.openedAt},${value.note}) returning id,user_id,asset_key,side,quantity,entry_price,exit_price,opened_at,closed_at,note`;return rowToPaperTrade(rows[0]);},
   async closePaperTrade(userId,id,exitPrice,closedAt){const rows=await sql`update paper_trades set exit_price=${exitPrice},closed_at=${closedAt} where id=${id} and user_id=${userId} and closed_at is null returning id,user_id,asset_key,side,quantity,entry_price,exit_price,opened_at,closed_at,note`;return rows[0]?rowToPaperTrade(rows[0]):null;},
   async deletePaperTrade(userId,id){const rows=await sql`delete from paper_trades where id=${id} and user_id=${userId} returning id`;return rows.length>0;},
+  async listDecisionNotes(userId){const rows=await sql`select id,user_id,asset_key,note_text,created_at,updated_at from decision_notes where user_id=${userId} order by created_at desc`;return rows.map(rowToDecisionNote);},
+  async createDecisionNote(userId,value){const rows=await sql`insert into decision_notes(id,user_id,asset_key,note_text,created_at,updated_at) values(${value.id},${userId},${value.assetKey},${value.text},${value.createdAt},${value.createdAt}) returning id,user_id,asset_key,note_text,created_at,updated_at`;return rowToDecisionNote(rows[0]);},
+  async deleteDecisionNote(userId,id){const rows=await sql`delete from decision_notes where id=${id} and user_id=${userId} returning id`;return rows.length>0;},
  };
 }
 
