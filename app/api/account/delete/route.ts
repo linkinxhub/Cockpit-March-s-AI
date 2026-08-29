@@ -1,0 +1,3 @@
+import{getSharedUserIdentity}from'@/lib/user-identity';
+import{eraseUserData}from'@/lib/account-data';
+export async function POST(req:Request){const user=await getSharedUserIdentity();if(!user)return Response.json({error:'authentication_required'},{status:401});let body:any;try{body=await req.json();}catch{return Response.json({error:'invalid_json'},{status:400});}if(body?.confirm!=='DELETE_MY_ACCOUNT')return Response.json({error:'confirmation_required'},{status:400});try{return Response.json(await eraseUserData(user.id),{headers:{'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}catch(e){const message=e instanceof Error?e.message:'delete_failed';return Response.json({error:message},{status:message==='active_subscription_must_be_cancelled'?409:500});}}
