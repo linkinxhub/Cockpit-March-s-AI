@@ -1,4 +1,4 @@
-import{bigint,boolean,pgTable,primaryKey,text}from'drizzle-orm/pg-core';
+import{bigint,boolean,integer,pgTable,primaryKey,text}from'drizzle-orm/pg-core';
 
 export const userProfiles=pgTable('user_profiles',{
  id:text('id').primaryKey(),
@@ -21,6 +21,8 @@ export const notificationPreferences=pgTable('notification_preferences',{
  pushEnabled:boolean('push_enabled').notNull().default(false),
  quietHoursStart:text('quiet_hours_start'),
  quietHoursEnd:text('quiet_hours_end'),
+ timeZone:text('time_zone'),
+ utcOffsetMinutes:integer('utc_offset_minutes'),
  updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
 });
 
