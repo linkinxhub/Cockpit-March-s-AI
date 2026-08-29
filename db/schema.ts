@@ -74,3 +74,21 @@ export const userWorkspaceState=pgTable('user_workspace_state',{
  passports:jsonb('passports').notNull().default([]),
  updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
 });
+
+export const billingSubscriptions=pgTable('billing_subscriptions',{
+ userId:text('user_id').primaryKey(),
+ plan:text('plan').notNull().default('FREE'),
+ status:text('status').notNull().default('free'),
+ stripeCustomerId:text('stripe_customer_id').unique(),
+ stripeSubscriptionId:text('stripe_subscription_id').unique(),
+ stripePriceId:text('stripe_price_id'),
+ currentPeriodEnd:bigint('current_period_end',{mode:'number'}),
+ cancelAtPeriodEnd:boolean('cancel_at_period_end').notNull().default(false),
+ updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
+});
+
+export const billingWebhookEvents=pgTable('billing_webhook_events',{
+ eventId:text('event_id').primaryKey(),
+ eventType:text('event_type').notNull(),
+ processedAt:bigint('processed_at',{mode:'number'}).notNull(),
+});
