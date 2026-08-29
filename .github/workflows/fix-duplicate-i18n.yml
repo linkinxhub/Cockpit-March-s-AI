@@ -1,0 +1,52 @@
+name: Fix duplicate i18n key
+
+on:
+  push:
+    branches:
+      - feat/flutter-mobile-sync
+
+permissions:
+  contents: write
+
+jobs:
+  fix-i18n:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/flutter-mobile-sync
+          fetch-depth: 0
+      - name: Remove only duplicate Période active entry
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('lib/i18n.ts')
+          s=p.read_text(encoding='utf-8')
+          needle='  "Période active": ["Active timeframe", "Aktiver Zeitraum", "Actieve periode"],\n'
+          positions=[]
+          start=0
+          while True:
+              i=s.find(needle,start)
+              if i<0: break
+              positions.append(i)
+              start=i+len(needle)
+          if len(positions)<=1:
+              print('No duplicate to remove')
+          else:
+              i=positions[-1]
+              s=s[:i]+s[i+len(needle):]
+              p.write_text(s,encoding='utf-8')
+              print(f'Removed duplicate occurrence #{len(positions)}')
+          PY
+      - name: Commit targeted fix
+        run: |
+          if git diff --quiet -- lib/i18n.ts; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/i18n.ts
+          git commit -m "Fix duplicate Période active translation key"
+          git push origin HEAD:feat/flutter-mobile-sync
