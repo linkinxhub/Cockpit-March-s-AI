@@ -4,24 +4,27 @@ import{getUserSyncStore,type NotificationPreferences}from'./user-sync-store';
 function connectionString(){return process.env.DATABASE_URL||process.env.POSTGRES_URL||process.env.NEON_DATABASE_URL||process.env.NEON_POSTGRES_URL||'';}
 
 export async function runUserSyncSmoke(){
- const userId=`smoke:${crypto.randomUUID()}`,deviceId=`smoke-device:${crypto.randomUUID()}`,tradeId=`smoke-trade:${crypto.randomUUID()}`,eventId=`smoke-event:${crypto.randomUUID()}`;
+ const userId=`smoke:${crypto.randomUUID()}`,deviceId=`smoke-device:${crypto.randomUUID()}`,tradeId=`smoke-trade:${crypto.randomUUID()}`,noteId=`smoke-note:${crypto.randomUUID()}`,eventId=`smoke-event:${crypto.randomUUID()}`;
  const store=getUserSyncStore();
  const prefs:NotificationPreferences={minimumSeverity:'CRITIQUE',watchedOnly:false,pushEnabled:true,quietHoursStart:'23:00',quietHoursEnd:'06:00',timeZone:'Europe/Brussels',utcOffsetMinutes:120};
- const checks={watchlist:false,preferences:false,reads:false,devices:false,paperTrading:false,cleanup:false};
+ const checks={watchlist:false,preferences:false,reads:false,devices:false,paperTrading:false,decisionNotes:false,cleanup:false};
  try{
   await store.setWatchlist(userId,['BTCUSD','EURUSD']);
   await store.setNotificationPreferences(userId,prefs);
   await store.markNotificationsRead(userId,[eventId]);
   await store.registerNotificationDevice(userId,{id:deviceId,platform:'web',provider:'webPush',token:null,endpoint:'https://example.invalid/push',p256dh:'smoke-p256dh',auth:'smoke-auth'});
   await store.createPaperTrade(userId,{id:tradeId,assetKey:'BTCUSD',side:'BUY',quantity:'0.01',entryPrice:'100000',openedAt:Date.now(),note:'smoke-test'});
-  const snapshot=await store.getSnapshot(userId),devices=await store.listNotificationDevices(userId),trades=await store.listPaperTrades(userId);
+  await store.createDecisionNote(userId,{id:noteId,assetKey:'BTCUSD',text:'smoke decision note',createdAt:Date.now()});
+  const snapshot=await store.getSnapshot(userId),devices=await store.listNotificationDevices(userId),trades=await store.listPaperTrades(userId),notes=await store.listDecisionNotes(userId);
   checks.watchlist=snapshot.watchlist.includes('BTCUSD')&&snapshot.watchlist.includes('EURUSD');
   checks.preferences=snapshot.notificationPreferences.minimumSeverity==='CRITIQUE'&&snapshot.notificationPreferences.timeZone==='Europe/Brussels';
   checks.reads=snapshot.readNotificationIds.includes(eventId);
   checks.devices=devices.some(device=>device.id===deviceId&&device.provider==='webPush');
   checks.paperTrading=trades.some(trade=>trade.id===tradeId&&trade.side==='BUY');
+  checks.decisionNotes=notes.some(item=>item.id===noteId&&item.assetKey==='BTCUSD'&&item.text==='smoke decision note');
   await store.closePaperTrade(userId,tradeId,'101000',Date.now());
-  return{ok:Object.values(checks).slice(0,5).every(Boolean),checks};
+  await store.deleteDecisionNote(userId,noteId);
+  return{ok:Object.values(checks).slice(0,6).every(Boolean),checks};
  }finally{
   const url=connectionString();
   if(url){
@@ -32,6 +35,7 @@ export async function runUserSyncSmoke(){
     sql`delete from notification_reads where user_id=${userId}`,
     sql`delete from notification_devices where user_id=${userId}`,
     sql`delete from paper_trades where user_id=${userId}`,
+    sql`delete from decision_notes where user_id=${userId}`,
     sql`delete from user_profiles where id=${userId}`,
    ]);
    checks.cleanup=true;
