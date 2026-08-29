@@ -1,10 +1,10 @@
 import '../../../core/api/api_client.dart';
 
 class UserSyncCapabilities{
-  const UserSyncCapabilities({required this.durableStore,required this.watchlist,required this.notificationPreferences,required this.notificationReads,required this.notificationDevices,required this.paperTrading});
-  final bool durableStore,watchlist,notificationPreferences,notificationReads,notificationDevices,paperTrading;
+  const UserSyncCapabilities({required this.durableStore,required this.watchlist,required this.notificationPreferences,required this.notificationReads,required this.notificationDevices,required this.paperTrading,required this.decisionNotes});
+  final bool durableStore,watchlist,notificationPreferences,notificationReads,notificationDevices,paperTrading,decisionNotes;
   factory UserSyncCapabilities.fromJson(Map<String,dynamic> json)=>UserSyncCapabilities(
-    durableStore:json['durableStore']==true,watchlist:json['watchlist']==true,notificationPreferences:json['notificationPreferences']==true,notificationReads:json['notificationReads']==true,notificationDevices:json['notificationDevices']==true,paperTrading:json['paperTrading']==true,
+    durableStore:json['durableStore']==true,watchlist:json['watchlist']==true,notificationPreferences:json['notificationPreferences']==true,notificationReads:json['notificationReads']==true,notificationDevices:json['notificationDevices']==true,paperTrading:json['paperTrading']==true,decisionNotes:json['decisionNotes']==true,
   );
 }
 
@@ -40,6 +40,12 @@ class PaperTrade{
   factory PaperTrade.fromJson(Map<String,dynamic> json)=>PaperTrade(id:json['id']?.toString()??'',assetKey:json['assetKey']?.toString()??'',side:json['side']?.toString()??'BUY',quantity:json['quantity']?.toString()??'0',entryPrice:json['entryPrice']?.toString()??'0',exitPrice:json['exitPrice']?.toString(),openedAt:(json['openedAt'] as num?)?.toInt()??0,closedAt:(json['closedAt'] as num?)?.toInt(),note:json['note']?.toString());
 }
 
+class DecisionNote{
+  const DecisionNote({required this.id,this.assetKey,required this.text,required this.createdAt,required this.updatedAt});
+  final String id,text;final String? assetKey;final int createdAt,updatedAt;
+  factory DecisionNote.fromJson(Map<String,dynamic> json)=>DecisionNote(id:json['id']?.toString()??'',assetKey:json['assetKey']?.toString(),text:json['text']?.toString()??'',createdAt:(json['createdAt'] as num?)?.toInt()??0,updatedAt:(json['updatedAt'] as num?)?.toInt()??0);
+}
+
 class UserSyncRepository{
   UserSyncRepository(this._api);final ApiClient _api;
   Future<UserSyncCapabilities> capabilities()async=>UserSyncCapabilities.fromJson(await _api.getJson('/api/user-sync/capabilities'));
@@ -54,4 +60,7 @@ class UserSyncRepository{
   Future<PaperTrade> createPaperTrade({required String assetKey,required String side,required String quantity,required String entryPrice,String? note})async{final json=await _api.postJson('/api/user-sync/paper-trades',{'assetKey':assetKey,'side':side,'quantity':quantity,'entryPrice':entryPrice,'note':note});return PaperTrade.fromJson((json['trade'] as Map<String,dynamic>?)??<String,dynamic>{});}
   Future<PaperTrade> closePaperTrade(String id,String exitPrice)async{final json=await _api.patchJson('/api/user-sync/paper-trades',{'id':id,'exitPrice':exitPrice});return PaperTrade.fromJson((json['trade'] as Map<String,dynamic>?)??<String,dynamic>{});}
   Future<void> deletePaperTrade(String id)async{await _api.deleteJson('/api/user-sync/paper-trades?id=${Uri.encodeQueryComponent(id)}');}
+  Future<List<DecisionNote>> decisionNotes()async{final json=await _api.getJson('/api/user-sync/decision-notes');final list=json['notes'] as List<dynamic>? ?? const <dynamic>[];return list.whereType<Map<String,dynamic>>().map(DecisionNote.fromJson).toList(growable:false);}
+  Future<DecisionNote> createDecisionNote({String? assetKey,required String text})async{final json=await _api.postJson('/api/user-sync/decision-notes',{'assetKey':assetKey,'text':text});return DecisionNote.fromJson((json['note'] as Map<String,dynamic>?)??<String,dynamic>{});}
+  Future<void> deleteDecisionNote(String id)async{await _api.deleteJson('/api/user-sync/decision-notes?id=${Uri.encodeQueryComponent(id)}');}
 }
