@@ -3,18 +3,26 @@ import{neon}from'@neondatabase/serverless';
 export type NotificationSeverity='INFO'|'IMPORTANT'|'CRITIQUE';
 export type NotificationPreferences={minimumSeverity:NotificationSeverity;watchedOnly:boolean;pushEnabled:boolean;quietHoursStart:string|null;quietHoursEnd:string|null};
 export type UserSyncSnapshot={watchlist:string[];notificationPreferences:NotificationPreferences;readNotificationIds:string[]};
+export type PaperTradeSide='BUY'|'SELL';
+export type PaperTrade={id:string;userId:string;assetKey:string;side:PaperTradeSide;quantity:string;entryPrice:string;exitPrice:string|null;openedAt:number;closedAt:number|null;note:string|null};
+export type NewPaperTrade={id:string;assetKey:string;side:PaperTradeSide;quantity:string;entryPrice:string;openedAt:number;note:string|null};
 
 export interface UserSyncStore{
  getSnapshot(userId:string):Promise<UserSyncSnapshot>;
  setWatchlist(userId:string,assetKeys:string[]):Promise<void>;
  setNotificationPreferences(userId:string,value:NotificationPreferences):Promise<void>;
  markNotificationsRead(userId:string,eventIds:string[]):Promise<void>;
+ listPaperTrades(userId:string):Promise<PaperTrade[]>;
+ createPaperTrade(userId:string,value:NewPaperTrade):Promise<PaperTrade>;
+ closePaperTrade(userId:string,id:string,exitPrice:string,closedAt:number):Promise<PaperTrade|null>;
+ deletePaperTrade(userId:string,id:string):Promise<boolean>;
 }
 
 export const defaultNotificationPreferences:NotificationPreferences={minimumSeverity:'IMPORTANT',watchedOnly:true,pushEnabled:false,quietHoursStart:null,quietHoursEnd:null};
 
 function connectionString(){return process.env.DATABASE_URL||process.env.POSTGRES_URL||process.env.NEON_DATABASE_URL||process.env.NEON_POSTGRES_URL||'';}
 export function userSyncStoreConfigured(){return Boolean(connectionString());}
+function rowToPaperTrade(row:any):PaperTrade{return{id:String(row.id),userId:String(row.user_id),assetKey:String(row.asset_key),side:String(row.side) as PaperTradeSide,quantity:String(row.quantity),entryPrice:String(row.entry_price),exitPrice:row.exit_price==null?null:String(row.exit_price),openedAt:Number(row.opened_at),closedAt:row.closed_at==null?null:Number(row.closed_at),note:row.note==null?null:String(row.note)};}
 
 function postgresStore():UserSyncStore{
  const url=connectionString();
@@ -47,6 +55,10 @@ function postgresStore():UserSyncStore{
    const now=Date.now();
    for(const eventId of eventIds)await sql`insert into notification_reads(user_id,event_id,read_at) values(${userId},${eventId},${now}) on conflict(user_id,event_id) do update set read_at=excluded.read_at`;
   },
+  async listPaperTrades(userId){const rows=await sql`select id,user_id,asset_key,side,quantity,entry_price,exit_price,opened_at,closed_at,note from paper_trades where user_id=${userId} order by opened_at desc`;return rows.map(rowToPaperTrade);},
+  async createPaperTrade(userId,value){const rows=await sql`insert into paper_trades(id,user_id,asset_key,side,quantity,entry_price,opened_at,note) values(${value.id},${userId},${value.assetKey},${value.side},${value.quantity},${value.entryPrice},${value.openedAt},${value.note}) returning id,user_id,asset_key,side,quantity,entry_price,exit_price,opened_at,closed_at,note`;return rowToPaperTrade(rows[0]);},
+  async closePaperTrade(userId,id,exitPrice,closedAt){const rows=await sql`update paper_trades set exit_price=${exitPrice},closed_at=${closedAt} where id=${id} and user_id=${userId} and closed_at is null returning id,user_id,asset_key,side,quantity,entry_price,exit_price,opened_at,closed_at,note`;return rows[0]?rowToPaperTrade(rows[0]):null;},
+  async deletePaperTrade(userId,id){const rows=await sql`delete from paper_trades where id=${id} and user_id=${userId} returning id`;return rows.length>0;},
  };
 }
 
