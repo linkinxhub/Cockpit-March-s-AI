@@ -1,0 +1,5 @@
+import{getSharedUserIdentity}from'@/lib/user-identity';
+import{getBillingState}from'@/lib/billing-store';
+import{stripePost}from'@/lib/stripe-rest';
+function appBase(req:Request){const configured=process.env.PUBLIC_APP_URL;if(configured)return configured.replace(/\/$/,'');if(process.env.VERCEL_ENV==='production')throw new Error('public_app_url_required');return new URL(req.url).origin;}
+export async function POST(req:Request){const user=await getSharedUserIdentity();if(!user)return Response.json({error:'authentication_required'},{status:401});try{const state=await getBillingState(user.id);if(!state.stripeCustomerId)return Response.json({error:'stripe_customer_missing'},{status:404});const session=await stripePost('/billing_portal/sessions',{customer:state.stripeCustomerId,return_url:`${appBase(req)}/pricing`},`portal:${user.id}:${Math.floor(Date.now()/60000)}`);return Response.json({url:session.url},{headers:{'Cache-Control':'no-store'}});}catch(e){return Response.json({error:e instanceof Error?e.message:'portal_failed'},{status:500});}}
