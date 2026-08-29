@@ -13,11 +13,11 @@ test('smoke endpoint is preview-only and explicitly confirmed',()=>{
 });
 
 test('smoke test exercises every durable user domain',()=>{
- for(const method of ['setWatchlist','setNotificationPreferences','markNotificationsRead','registerNotificationDevice','createPaperTrade','createDecisionNote','getSnapshot','listNotificationDevices','listPaperTrades','listDecisionNotes','closePaperTrade','deleteDecisionNote'])assert.match(smoke,new RegExp(method));
+ for(const method of ['setWatchlist','setNotificationPreferences','markNotificationsRead','registerNotificationDevice','createPaperTrade','createDecisionNote','setUserWorkspace','getUserWorkspace','getSnapshot','listNotificationDevices','listPaperTrades','listDecisionNotes','closePaperTrade','deleteDecisionNote'])assert.match(smoke,new RegExp(method));
 });
 
 test('smoke test always cleans synthetic data',()=>{
  assert.match(smoke,/finally/);
- for(const table of ['watchlist_items','notification_preferences','notification_reads','notification_devices','paper_trades','decision_notes','user_profiles'])assert.match(smoke,new RegExp(`delete from ${table}`));
+ for(const table of ['watchlist_items','notification_preferences','notification_reads','notification_devices','paper_trades','decision_notes','user_workspace_state','user_profiles'])assert.match(smoke,new RegExp(`delete from ${table}`));
  assert.match(smoke,/smoke:/);
 });
