@@ -1,0 +1,32 @@
+name: Fix workspace synchronization copy
+
+on:
+  push:
+    branches: [feat/flutter-mobile-sync]
+    paths:
+      - 'scripts/fix-workspace-copy.mjs'
+      - '.github/workflows/fix-workspace-copy.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/flutter-mobile-sync
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/fix-workspace-copy.mjs
+      - run: git diff --check
+      - name: Commit copy fix
+        run: |
+          if git diff --quiet -- app/page.tsx; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/page.tsx
+          git commit -m 'Update synchronized workspace copy'
+          git push origin HEAD:feat/flutter-mobile-sync
