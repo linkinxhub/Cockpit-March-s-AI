@@ -1,10 +1,11 @@
 import type { NewsAlertEvent } from './news-alert-engine';
-import type { UserSyncSnapshot } from './user-sync-store';
+import type { NotificationDevice, UserSyncSnapshot } from './user-sync-store';
 import { alertEligibility } from './user-alert-policy';
 
 export type PushProvider='webPush'|'fcm'|'apns';
 export type PushCapabilities={webPush:boolean;fcm:boolean;apns:boolean};
-export type PushDispatchPlan={eligible:boolean;reason:string;providers:PushProvider[];eventId:string;assetKey:string;deepLink:string};
+export type PushTarget={deviceId:string;platform:string;provider:PushProvider};
+export type PushDispatchPlan={eligible:boolean;reason:string;providers:PushProvider[];targets:PushTarget[];eventId:string;assetKey:string;deepLink:string};
 
 export function pushCapabilitiesFromEnv():PushCapabilities{
  return{
@@ -14,10 +15,13 @@ export function pushCapabilitiesFromEnv():PushCapabilities{
  };
 }
 
-export function buildPushDispatchPlan(event:NewsAlertEvent,snapshot:UserSyncSnapshot,options?:{now?:Date}):PushDispatchPlan{
+export function buildPushDispatchPlan(event:NewsAlertEvent,snapshot:UserSyncSnapshot,devices:NotificationDevice[]=[],options?:{now?:Date}):PushDispatchPlan{
+ const deepLink=`/asset/${encodeURIComponent(event.assetKey)}?tab=news&event=${encodeURIComponent(event.id)}`;
  const eligibility=alertEligibility(event,snapshot,{now:options?.now,requirePush:true});
- if(!eligibility.eligible)return{eligible:false,reason:eligibility.reason,providers:[],eventId:event.id,assetKey:event.assetKey,deepLink:`/asset/${encodeURIComponent(event.assetKey)}?tab=news&event=${encodeURIComponent(event.id)}`};
- const caps=pushCapabilitiesFromEnv(),providers:PushProvider[]=[];
- if(caps.webPush)providers.push('webPush');if(caps.fcm)providers.push('fcm');if(caps.apns)providers.push('apns');
- return{eligible:providers.length>0,reason:providers.length>0?'ready':'provider_not_configured',providers,eventId:event.id,assetKey:event.assetKey,deepLink:`/asset/${encodeURIComponent(event.assetKey)}?tab=news&event=${encodeURIComponent(event.id)}`};
+ if(!eligibility.eligible)return{eligible:false,reason:eligibility.reason,providers:[],targets:[],eventId:event.id,assetKey:event.assetKey,deepLink};
+ const caps=pushCapabilitiesFromEnv();
+ const targets=devices.filter(device=>caps[device.provider]===true).map(device=>({deviceId:device.id,platform:device.platform,provider:device.provider}));
+ const providers=[...new Set(targets.map(target=>target.provider))];
+ const reason=devices.length===0?'no_registered_device':targets.length===0?'provider_not_configured':'ready';
+ return{eligible:targets.length>0,reason,providers,targets,eventId:event.id,assetKey:event.assetKey,deepLink};
 }
