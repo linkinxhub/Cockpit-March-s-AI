@@ -57,3 +57,12 @@ export const paperTrades=pgTable('paper_trades',{
  closedAt:bigint('closed_at',{mode:'number'}),
  note:text('note'),
 });
+
+export const decisionNotes=pgTable('decision_notes',{
+ id:text('id').primaryKey(),
+ userId:text('user_id').notNull(),
+ assetKey:text('asset_key'),
+ noteText:text('note_text').notNull(),
+ createdAt:bigint('created_at',{mode:'number'}).notNull(),
+ updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
+});
