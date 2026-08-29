@@ -408,7 +408,7 @@ export default function Home() {
     >([]),
     [note, setNote] = useState(""),
     [journal, setJournal] = useState<
-      { id: number; text: string; date: string }[]
+      { id: string; text: string; assetKey: string | null; createdAt: number }[]
     >([]);
   const [profile, setProfile] = useState<TraderProfile>({
       level: "Débutant",
@@ -631,14 +631,37 @@ export default function Home() {
     return () => controller.abort();
   }, []);
   useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/user-sync/decision-notes", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) return { notes: [] };
+        if (!response.ok) throw new Error("journal_load_failed");
+        return response.json();
+      })
+      .then((payload) =>
+        setJournal(
+          Array.isArray(payload?.notes)
+            ? payload.notes.map((item) => ({
+                id: String(item.id),
+                text: String(item.text || ""),
+                assetKey: item.assetKey == null ? null : String(item.assetKey),
+                createdAt: Number(item.createdAt || 0),
+              }))
+            : [],
+        ),
+      )
+      .catch((error) => {
+        if (error?.name !== "AbortError") setJournal([]);
+      });
+    return () => controller.abort();
+  }, []);
+  useEffect(() => {
     try {
       const a = localStorage.getItem("cockpit-alerts-v1"),
-        j = localStorage.getItem("cockpit-journal-v1"),
         p = localStorage.getItem("cockpit-profile-v1"),
         d = localStorage.getItem("cockpit-passports-v1"),
         e = localStorage.getItem("cockpit-decision-events-v1");
       if (a) setAlerts(JSON.parse(a));
-      if (j) setJournal(JSON.parse(j));
       if (p) setProfile(JSON.parse(p));
       if (d) setPassports(JSON.parse(d));
       if (e) setDecisionEvents(JSON.parse(e));
@@ -650,11 +673,10 @@ export default function Home() {
   useEffect(() => {
     if (!storageReady) return;
     localStorage.setItem("cockpit-alerts-v1", JSON.stringify(alerts));
-    localStorage.setItem("cockpit-journal-v1", JSON.stringify(journal));
     localStorage.setItem("cockpit-profile-v1", JSON.stringify(profile));
     localStorage.setItem("cockpit-passports-v1", JSON.stringify(passports));
     localStorage.setItem("cockpit-decision-events-v1", JSON.stringify(decisionEvents));
-  }, [alerts, journal, profile, passports, decisionEvents, storageReady]);
+  }, [alerts, profile, passports, decisionEvents, storageReady]);
   useEffect(() => {
     const saved = localStorage.getItem("cockpit-language") as Lang | null;
     if (saved && ["fr", "en", "de", "nl"].includes(saved)) setLanguage(saved);
@@ -748,17 +770,39 @@ export default function Home() {
     ]);
     setAlertPrice("");
   };
-  const addNote = () => {
-    if (!note.trim()) return;
-    setJournal((j) => [
-      {
-        id: Date.now(),
-        text: note.trim(),
-        date: new Date().toLocaleString(locale),
-      },
-      ...j,
-    ]);
-    setNote("");
+  const addNote = async () => {
+    const text = note.trim();
+    if (!text) return;
+    try {
+      const response = await fetch("/api/user-sync/decision-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetKey: active.key, text }),
+      });
+      if (!response.ok) throw new Error("journal_save_failed");
+      const payload = await response.json();
+      const saved = payload?.note;
+      if (!saved) throw new Error("journal_save_failed");
+      setJournal((items) => [{
+        id: String(saved.id),
+        text: String(saved.text || text),
+        assetKey: saved.assetKey == null ? active.key : String(saved.assetKey),
+        createdAt: Number(saved.createdAt || Date.now()),
+      }, ...items]);
+      setNote("");
+    } catch {
+      // Keep the draft visible so the user can retry without losing text.
+    }
+  };
+  const removeJournalNote = async (id: string) => {
+    const previous = journal;
+    setJournal((items) => items.filter((item) => item.id !== id));
+    try {
+      const response = await fetch("/api/user-sync/decision-notes?id=" + encodeURIComponent(id), { method: "DELETE" });
+      if (!response.ok) throw new Error("journal_delete_failed");
+    } catch {
+      setJournal(previous);
+    }
   };
   const goMarket = (category: string) => {
     setKind(category);
@@ -3786,8 +3830,7 @@ export default function Home() {
                 <p>JOURNAL</p>
                 <h1>Journal de décisions</h1>
                 <span>
-                  Notez votre raisonnement avant d’agir pour garder une méthode
-                  disciplinée.
+                  Notez votre raisonnement avant d’agir. Le journal est synchronisé avec votre compte Web et Flutter.
                 </span>
               </div>
             </div>
@@ -3815,12 +3858,10 @@ export default function Home() {
                     <BookOpen />
                     <span>
                       <b>{j.text}</b>
-                      <small>{j.date}</small>
+                      <small>{new Date(j.createdAt).toLocaleString(locale)}{j.assetKey ? " · " + j.assetKey : ""}</small>
                     </span>
                     <button
-                      onClick={() =>
-                        setJournal((x) => x.filter((v) => v.id !== j.id))
-                      }
+                      onClick={() => void removeJournalNote(j.id)}
                     >
                       <Trash2 />
                     </button>
