@@ -2,6 +2,7 @@ import '../../../core/api/api_client.dart';
 
 class MarketRow {
   const MarketRow({
+    required this.key,
     required this.symbol,
     required this.name,
     required this.kind,
@@ -15,6 +16,7 @@ class MarketRow {
     this.resistance,
   });
 
+  final String key;
   final String symbol;
   final String name;
   final String kind;
@@ -29,19 +31,23 @@ class MarketRow {
 
   static double? _number(dynamic value) => value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '');
 
-  factory MarketRow.fromJson(Map<String, dynamic> json) => MarketRow(
-        symbol: json['symbol']?.toString() ?? '—',
-        name: json['name']?.toString() ?? '—',
-        kind: json['kind']?.toString() ?? '—',
-        price: _number(json['price'] ?? json['last']),
-        changePct: _number(json['changePct']),
-        signal: (json['signal'] ?? json['decision'])?.toString(),
-        rsi: _number(json['rsi']),
-        ema20: _number(json['ema20']),
-        ema50: _number(json['ema50']),
-        support: _number(json['support']),
-        resistance: _number(json['resistance']),
-      );
+  factory MarketRow.fromJson(Map<String, dynamic> json) {
+    final symbol = json['symbol']?.toString() ?? '—';
+    return MarketRow(
+      key: json['key']?.toString() ?? symbol,
+      symbol: symbol,
+      name: json['name']?.toString() ?? '—',
+      kind: json['kind']?.toString() ?? '—',
+      price: _number(json['price'] ?? json['last']),
+      changePct: _number(json['changePct'] ?? json['change']),
+      signal: (json['signal'] ?? json['decision'])?.toString(),
+      rsi: _number(json['rsi']),
+      ema20: _number(json['ema20']),
+      ema50: _number(json['ema50']),
+      support: _number(json['support']),
+      resistance: _number(json['resistance']),
+    );
+  }
 }
 
 class MarketRepository {
