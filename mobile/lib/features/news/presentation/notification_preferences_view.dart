@@ -9,11 +9,17 @@ class NotificationPreferencesView extends StatefulWidget{
 
 class _NotificationPreferencesViewState extends State<NotificationPreferencesView>{
   late Future<UserSyncSnapshot> future;
+  late Future<List<NotificationDevice>> devices;
   SyncNotificationPreferences? prefs;
   bool saving=false;
   String? error;
 
-  @override void initState(){super.initState();future=widget.repository.snapshot();}
+  @override void initState(){super.initState();future=widget.repository.snapshot();devices=widget.repository.notificationDevices();}
+  void refreshDevices()=>setState(()=>devices=widget.repository.notificationDevices());
+
+  Future<void> removeDevice(NotificationDevice device)async{
+    try{await widget.repository.removeNotificationDevice(device.id);if(mounted){refreshDevices();ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Appareil révoqué.')));}}catch(e){if(mounted)setState(()=>error=e.toString());}
+  }
 
   Future<void> save()async{
     final current=prefs;if(current==null)return;
@@ -37,8 +43,11 @@ class _NotificationPreferencesViewState extends State<NotificationPreferencesVie
       const SizedBox(height:16),
       DropdownButtonFormField<String>(value:p.minimumSeverity,decoration:const InputDecoration(labelText:'Seuil minimum'),items:['INFO','IMPORTANT','CRITIQUE'].map((v)=>DropdownMenuItem(value:v,child:Text(v))).toList(),onChanged:(v){if(v!=null)setState(()=>prefs=SyncNotificationPreferences(minimumSeverity:v,watchedOnly:p.watchedOnly,pushEnabled:p.pushEnabled,quietHoursStart:p.quietHoursStart,quietHoursEnd:p.quietHoursEnd));}),
       SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('Uniquement les actifs favoris'),value:p.watchedOnly,onChanged:(v)=>setState(()=>prefs=SyncNotificationPreferences(minimumSeverity:p.minimumSeverity,watchedOnly:v,pushEnabled:p.pushEnabled,quietHoursStart:p.quietHoursStart,quietHoursEnd:p.quietHoursEnd))),
-      SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('Notifications push'),subtitle:const Text('Effectives dès qu’un fournisseur push est configuré.'),value:p.pushEnabled,onChanged:(v)=>setState(()=>prefs=SyncNotificationPreferences(minimumSeverity:p.minimumSeverity,watchedOnly:p.watchedOnly,pushEnabled:v,quietHoursStart:p.quietHoursStart,quietHoursEnd:p.quietHoursEnd))),
+      SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('Notifications push'),subtitle:const Text('Les envois exigent un appareil enregistré et un fournisseur configuré.'),value:p.pushEnabled,onChanged:(v)=>setState(()=>prefs=SyncNotificationPreferences(minimumSeverity:p.minimumSeverity,watchedOnly:p.watchedOnly,pushEnabled:v,quietHoursStart:p.quietHoursStart,quietHoursEnd:p.quietHoursEnd))),
       Card(child:Column(children:[ListTile(title:const Text('Silence début'),trailing:Text(p.quietHoursStart??'Non défini'),onTap:()async{final value=await pickTime(p.quietHoursStart);if(mounted)setState(()=>prefs=SyncNotificationPreferences(minimumSeverity:p.minimumSeverity,watchedOnly:p.watchedOnly,pushEnabled:p.pushEnabled,quietHoursStart:value,quietHoursEnd:p.quietHoursEnd));}),ListTile(title:const Text('Silence fin'),trailing:Text(p.quietHoursEnd??'Non défini'),onTap:()async{final value=await pickTime(p.quietHoursEnd);if(mounted)setState(()=>prefs=SyncNotificationPreferences(minimumSeverity:p.minimumSeverity,watchedOnly:p.watchedOnly,pushEnabled:p.pushEnabled,quietHoursStart:p.quietHoursStart,quietHoursEnd:value));})])),
+      const SizedBox(height:12),
+      Row(children:[Expanded(child:Text('Appareils push enregistrés',style:Theme.of(context).textTheme.titleMedium)),IconButton(onPressed:refreshDevices,icon:const Icon(Icons.refresh))]),
+      FutureBuilder<List<NotificationDevice>>(future:devices,builder:(context,d){if(d.connectionState==ConnectionState.waiting)return const LinearProgressIndicator();if(d.hasError)return Text('Appareils indisponibles : ${d.error}');final list=d.data??const<NotificationDevice>[];if(list.isEmpty)return const Card(child:Padding(padding:EdgeInsets.all(14),child:Text('Aucun appareil enregistré. Le branchement natif FCM/APNs sera activé lorsque les SDK et credentials seront configurés.')));return Column(children:list.map((device)=>Card(child:ListTile(leading:Icon(device.platform=='ios'?Icons.phone_iphone:device.platform=='android'?Icons.android:Icons.web),title:Text('${device.platform.toUpperCase()} · ${device.provider}'),subtitle:Text(device.configured?'Destination configurée':'Configuration incomplète'),trailing:IconButton(onPressed:()=>removeDevice(device),icon:const Icon(Icons.delete_outline))))).toList());}),
       if(error!=null)Padding(padding:const EdgeInsets.only(top:8),child:Text(error!,style:TextStyle(color:Theme.of(context).colorScheme.error))),
       const SizedBox(height:16),FilledButton.icon(onPressed:saving?null:save,icon:const Icon(Icons.sync),label:Text(saving?'Enregistrement…':'Enregistrer et synchroniser')),
     ]);
