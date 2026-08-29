@@ -1,4 +1,4 @@
-import{bigint,boolean,integer,pgTable,primaryKey,text}from'drizzle-orm/pg-core';
+import{bigint,boolean,integer,jsonb,pgTable,primaryKey,text}from'drizzle-orm/pg-core';
 
 export const userProfiles=pgTable('user_profiles',{
  id:text('id').primaryKey(),
@@ -64,5 +64,13 @@ export const decisionNotes=pgTable('decision_notes',{
  assetKey:text('asset_key'),
  noteText:text('note_text').notNull(),
  createdAt:bigint('created_at',{mode:'number'}).notNull(),
+ updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
+});
+
+export const userWorkspaceState=pgTable('user_workspace_state',{
+ userId:text('user_id').primaryKey(),
+ profile:jsonb('profile').notNull().default({}),
+ priceAlerts:jsonb('price_alerts').notNull().default([]),
+ passports:jsonb('passports').notNull().default([]),
  updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
 });
