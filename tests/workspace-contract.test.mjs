@@ -36,8 +36,8 @@ test('ui-only preferences remain local while business state is synchronized',()=
   assert.match(web,/cockpit-decision-events-v1/);
 });
 
-test('manifest publishes workspace contract v2.4',()=>{
-  assert.match(manifest,/schemaVersion:'2\.4\.0'/);
+test('manifest preserves workspace contract in v2.5',()=>{
+  assert.match(manifest,/schemaVersion:'2\.5\.0'/);
   assert.match(manifest,/userWorkspace:'\/api\/user-sync\/workspace'/);
   assert.match(manifest,/0005_user_workspace_state\.sql/);
   assert.match(manifest,/traderProfile/);
