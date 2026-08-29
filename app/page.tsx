@@ -235,6 +235,7 @@ function indexMarketStatus(key: string, date: Date) {
 }
 const nav = [
   [LayoutDashboard, "Cockpit"],
+  [Activity, "Indicateurs"],
   [Gauge, "Opportunités"],
   [TrendingUp, "Prévisions"],
   [Star, "Favoris"],
@@ -1064,6 +1065,47 @@ export default function Home() {
       bias:cloudPosition === "au-dessus" && cross === "haussier" && cloudDirection === "haussier" ? "HAUSSIER" : cloudPosition === "en dessous" && cross === "baissier" && cloudDirection === "baissier" ? "BAISSIER" : "MIXTE",
     };
   }, [chart]);
+  const indicatorDecisions = useMemo(() => {
+    const unavailable = (name:string, value = "—", explanation = "Historique insuffisant pour produire une lecture fiable.") => ({ name, value, reading:"Indisponible", decision:"INDISPONIBLE", explanation });
+    const wait = (name:string, value:string, reading:string, explanation:string) => ({ name, value, reading, decision:"ATTENDRE", explanation });
+    const directional = (name:string, value:string, bullish:boolean, reading:string, explanation:string) => ({ name, value, reading, decision:bullish ? "ACHETER" : "VENDRE", explanation });
+    const last = active.last;
+    return [
+      technicalStudy
+        ? { name:"Ichimoku Kinko Hyo", value:`${technicalStudy.shape} · ${technicalStudy.cloudWidth.toFixed(2)} %`, reading:`Prix ${technicalStudy.cloudPosition} le nuage · croisement ${technicalStudy.cross}`, decision:technicalStudy.bias === "HAUSSIER" ? "ACHETER" : technicalStudy.bias === "BAISSIER" ? "VENDRE" : "ATTENDRE", explanation:"Preuve principale : position du prix, croisement Tenkan/Kijun et orientation du nuage." }
+        : unavailable("Ichimoku Kinko Hyo", "52 observations requises"),
+      active.ema20 === null || active.ema50 === null
+        ? unavailable("EMA 20 / EMA 50")
+        : directional("EMA 20 / EMA 50", `${number(active.ema20,5)} / ${number(active.ema50,5)}`, active.ema20 > active.ema50, active.ema20 > active.ema50 ? "Tendance haussière" : "Tendance baissière", "Le croisement des moyennes estime la direction dominante ; il ne confirme pas seul un point d’entrée."),
+      active.rsi === null
+        ? unavailable("RSI 14")
+        : active.rsi <= 30
+          ? directional("RSI 14", active.rsi.toFixed(1), true, "Zone de survente", "Un rebond devient possible, mais une confirmation du prix reste nécessaire.")
+          : active.rsi >= 70
+            ? directional("RSI 14", active.rsi.toFixed(1), false, "Zone de surachat", "Le risque de correction augmente ; attendre une confirmation avant toute vente.")
+            : wait("RSI 14", active.rsi.toFixed(1), "Zone équilibrée", "Le RSI ne donne pas actuellement de signal extrême exploitable."),
+      technicalStudy
+        ? directional("MACD 12 / 26", number(technicalStudy.macd,5), technicalStudy.macd >= 0, technicalStudy.macd >= 0 ? "Momentum positif" : "Momentum négatif", "L’écart entre les moyennes rapides et lentes mesure l’impulsion dominante.")
+        : unavailable("MACD 12 / 26"),
+      technicalStudy && last !== null
+        ? last <= technicalStudy.bollingerLower
+          ? directional("Bandes de Bollinger", `${number(technicalStudy.bollingerLower,4)} — ${number(technicalStudy.bollingerUpper,4)}`, true, "Prix sur la bande basse", "Une réintégration de la bande peut soutenir un rebond technique.")
+          : last >= technicalStudy.bollingerUpper
+            ? directional("Bandes de Bollinger", `${number(technicalStudy.bollingerLower,4)} — ${number(technicalStudy.bollingerUpper,4)}`, false, "Prix sur la bande haute", "Le prix est étiré ; surveiller un rejet ou une consolidation.")
+            : wait("Bandes de Bollinger", `${number(technicalStudy.bollingerLower,4)} — ${number(technicalStudy.bollingerUpper,4)}`, "Prix à l’intérieur des bandes", "Aucun excès statistique n’est détecté sur la période active.")
+        : unavailable("Bandes de Bollinger"),
+      technicalStudy
+        ? wait("ATR 14", number(technicalStudy.atr,5), "Mesure de risque", "L’ATR mesure l’amplitude et sert au dimensionnement du risque ; il n’indique jamais seul acheter ou vendre.")
+        : unavailable("ATR 14"),
+      active.support === null || active.resistance === null
+        ? unavailable("Supports / Résistances")
+        : wait("Supports / Résistances", `${number(active.support,5)} / ${number(active.resistance,5)}`, "Zone active", `Acheter exige une cassure confirmée au-dessus de ${number(active.resistance,5)} ; vendre exige une rupture confirmée sous ${number(active.support,5)}.`),
+    ];
+  }, [active, technicalStudy]);
+  const indicatorBuyCount = indicatorDecisions.filter((item) => item.decision === "ACHETER").length,
+    indicatorSellCount = indicatorDecisions.filter((item) => item.decision === "VENDRE").length,
+    indicatorWaitCount = indicatorDecisions.filter((item) => item.decision === "ATTENDRE").length,
+    indicatorConsensus = indicatorBuyCount > indicatorSellCount && indicatorBuyCount > indicatorWaitCount ? "ACHETER" : indicatorSellCount > indicatorBuyCount && indicatorSellCount > indicatorWaitCount ? "VENDRE" : "ATTENDRE";
   const opposingHorizons = timeframeComparisons.filter(
       (item) => item.decision !== active.decision && item.decision !== "ATTENDRE",
     ),
@@ -2116,62 +2158,6 @@ export default function Home() {
                 </button>
               ))}
             </section>
-            <section className="technicalIndicators" data-guide="technical-indicators">
-              <div className="technicalHead">
-                <div>
-                  <p>INDICATEURS TECHNIQUES</p>
-                  <h2>Lecture instantanée sur {timeframeLabel}</h2>
-                  <span>Les calculs utilisent exactement l’historique de la période active et se recalculent lors de chaque changement.</span>
-                </div>
-                <strong>{technicalStudy ? `${active.symbol} · ${technicalStudy.bias}` : "Historique insuffisant"}</strong>
-              </div>
-              <div className="indicatorSummary">
-                <article><span>EMA 20 / EMA 50</span><b className={(active.ema20 ?? 0) >= (active.ema50 ?? 0) ? "buy" : "sell"}>{(active.ema20 ?? 0) >= (active.ema50 ?? 0) ? "Tendance haussière" : "Tendance baissière"}</b><small>Direction moyenne du prix</small></article>
-                <article><span>RSI 14</span><b>{active.rsi === null ? "—" : active.rsi.toFixed(1)}</b><small>{active.rsi === null ? "Indisponible" : active.rsi > 70 ? "Zone de surachat" : active.rsi < 30 ? "Zone de survente" : "Zone équilibrée"}</small></article>
-                <article><span>MACD 12/26</span><b className={(technicalStudy?.macd ?? 0) >= 0 ? "buy" : "sell"}>{technicalStudy ? number(technicalStudy.macd,5) : "—"}</b><small>{technicalStudy ? (technicalStudy.macd >= 0 ? "Momentum moyen positif" : "Momentum moyen négatif") : "Historique insuffisant"}</small></article>
-                <article><span>Bandes de Bollinger</span><b>{technicalStudy ? `${number(technicalStudy.bollingerLower,4)} — ${number(technicalStudy.bollingerUpper,4)}` : "—"}</b><small>Zone statistique autour de la moyenne 20</small></article>
-                <article><span>ATR 14</span><b>{technicalStudy ? number(technicalStudy.atr,5) : "—"}</b><small>Amplitude moyenne, pas une direction</small></article>
-              </div>
-              {technicalStudy ? (
-                <div className="ichimokuFocus">
-                  <div className="ichimokuTitle">
-                    <div><Activity /><span><p>INDICATEUR MIS EN ÉVIDENCE</p><h2>Ichimoku Kinko Hyo</h2></span></div>
-                    <strong className={technicalStudy.bias === "HAUSSIER" ? "buy" : technicalStudy.bias === "BAISSIER" ? "sell" : "wait"}>{technicalStudy.bias}</strong>
-                  </div>
-                  <div className="ichimokuLayout">
-                    <div className="ichimokuChart">
-                      <ResponsiveContainer width="100%" height={300}>
-                        <ComposedChart data={technicalStudy.data}>
-                          <CartesianGrid stroke="#1e3039" vertical={false}/>
-                          <XAxis dataKey="t" tickFormatter={formatChartTime} minTickGap={40} tick={{fill:"#728690",fontSize:9}} axisLine={false}/>
-                          <YAxis orientation="right" domain={["auto","auto"]} tick={{fill:"#82959f",fontSize:10}}/>
-                          <Tooltip labelFormatter={(value) => new Date(Number(value)).toLocaleString(locale)} contentStyle={{background:"#08141d",border:"1px solid #29404e"}}/>
-                          <Area type="monotone" dataKey="spanA" stroke="#2edb99" fill="#2edb9926" connectNulls name="Senkou A"/>
-                          <Area type="monotone" dataKey="spanB" stroke="#ff6972" fill="#ff697218" connectNulls name="Senkou B"/>
-                          <Line type="monotone" dataKey="price" stroke="#e8f2f5" dot={false} strokeWidth={2} name="Prix"/>
-                          <Line type="monotone" dataKey="tenkan" stroke="#38a8ff" dot={false} strokeWidth={1.5} connectNulls name="Tenkan 9"/>
-                          <Line type="monotone" dataKey="kijun" stroke="#f3ad22" dot={false} strokeWidth={1.5} connectNulls name="Kijun 26"/>
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                      <div className="ichimokuLegend"><span className="priceLine">Prix</span><span className="tenkanLine">Tenkan 9</span><span className="kijunLine">Kijun 26</span><span className="spanALine">Senkou A</span><span className="spanBLine">Senkou B</span></div>
-                    </div>
-                    <div className="ichimokuExplanation">
-                      <h3>Ce que montre la forme actuelle</h3>
-                      <p>Le prix se trouve <b>{technicalStudy.cloudPosition} le nuage</b>. Le croisement Tenkan/Kijun est <b className={technicalStudy.cross === "haussier" ? "buy" : "sell"}>{technicalStudy.cross}</b> et le nuage projeté est orienté <b className={technicalStudy.cloudDirection === "haussier" ? "buy" : "sell"}>{technicalStudy.cloudDirection}</b>.</p>
-                      <p>La forme est celle d’un <b>{technicalStudy.shape}</b>, d’une épaisseur proche de <b>{technicalStudy.cloudWidth.toFixed(2)} %</b> du cours. Un nuage épais représente une zone de support/résistance plus difficile à traverser ; un nuage comprimé signale une protection plus faible et une possibilité de changement de régime.</p>
-                      <div className="ichimokuFacts">
-                        <span>Tenkan-sen<b>{number(technicalStudy.tenkan,5)}</b><small>Équilibre rapide sur 9 périodes</small></span>
-                        <span>Kijun-sen<b>{number(technicalStudy.kijun,5)}</b><small>Équilibre de fond sur 26 périodes</small></span>
-                        <span>Senkou A / B<b>{number(technicalStudy.spanA,5)} / {number(technicalStudy.spanB,5)}</b><small>Limites du nuage projeté</small></span>
-                        <span>Chikou théorique<b>{number(technicalStudy.chikou,5)}</b><small>Prix comparé à 26 périodes en arrière</small></span>
-                      </div>
-                      <div className="ichimokuVerdict"><ShieldCheck/><p><b>Lecture instantanée :</b> {technicalStudy.bias === "HAUSSIER" ? "les trois confirmations principales sont haussières. Une clôture durable au-dessus du nuage soutient le scénario, à condition que Tenkan reste au-dessus de Kijun." : technicalStudy.bias === "BAISSIER" ? "les trois confirmations principales sont baissières. Une reprise dans le nuage ou un croisement haussier Tenkan/Kijun fragiliserait ce scénario." : "les composantes ne sont pas alignées. Le prix dans le nuage ou des lignes opposées décrivent une phase d’incertitude ; attendre une sortie confirmée est plus prudent."}</p></div>
-                    </div>
-                  </div>
-                  <footer>Ichimoku utilise les plus hauts et plus bas disponibles. Les horaires de marché, les gaps et les annonces peuvent modifier rapidement sa lecture ; ce signal reste éducatif et non prédictif.</footer>
-                </div>
-              ) : <div className="indicatorEmpty">Au moins 52 observations valides sont nécessaires pour calculer Ichimoku sans inventer de valeurs.</div>}
-            </section>
             <section className="multiTimeframe">
               <div className="mtfHead">
                 <div>
@@ -2730,6 +2716,58 @@ export default function Home() {
                 </button>
               ))}
             </div>
+          </section>
+        )}
+
+        {view === "Indicateurs" && (
+          <section className="module technicalIndicators indicatorCenter" data-guide="technical-indicators">
+            <div className="technicalHead">
+              <div>
+                <p>CENTRE DES INDICATEURS</p>
+                <h1>Décision technique par indicateur</h1>
+                <span>Chaque lecture utilise {active.symbol} sur {timeframeLabel} et se recalcule avec l’actif ou la période.</span>
+              </div>
+              <strong className={tone(indicatorConsensus)}>Consensus · {indicatorConsensus}</strong>
+            </div>
+            <div className="indicatorControls">
+              <label>Actif
+                <select value={active.key} onChange={(event) => { const row = rows.find((item) => item.key === event.target.value); if (row) setActive(row); }}>
+                  {rows.map((row) => <option key={row.key} value={row.key}>{row.symbol} · {row.kind}</option>)}
+                </select>
+              </label>
+              <div><span>Période active</span><div className="indicatorPeriods">{timeframes.map(([period,label]) => <button key={period} className={timeframe === period ? "active" : ""} onClick={() => selectTimeframe(period)}>{label}</button>)}</div></div>
+            </div>
+            <div className="indicatorConsensus">
+              <span><b className="buy">{indicatorBuyCount}</b><small>ACHETER</small></span>
+              <span><b className="wait">{indicatorWaitCount}</b><small>ATTENDRE</small></span>
+              <span><b className="sell">{indicatorSellCount}</b><small>VENDRE</small></span>
+              <p><ShieldCheck/><span><b>Signal technique éducatif</b><small>Un indicateur isolé n’est pas un ordre. Vérifiez l’alignement, le risque et les actualités avant toute décision.</small></span></p>
+            </div>
+            <div className="indicatorDecisionTable" role="table" aria-label="Décisions des indicateurs techniques">
+              <div className="indicatorDecisionHeader" role="row"><span>Indicateur</span><span>Valeur</span><span>Lecture actuelle</span><span>Décision · {timeframeLabel}</span><span>Pourquoi</span></div>
+              {indicatorDecisions.map((item,index) => (
+                <article key={item.name} className={index === 0 ? "featured" : ""} role="row">
+                  <span data-label="Indicateur"><b>{item.name}</b>{index === 0 && <small>PREUVE PRINCIPALE</small>}</span>
+                  <span data-label="Valeur">{item.value}</span>
+                  <span data-label="Lecture">{item.reading}</span>
+                  <span data-label="Décision"><strong className={tone(item.decision)}>{item.decision}</strong></span>
+                  <span data-label="Pourquoi">{item.explanation}</span>
+                </article>
+              ))}
+            </div>
+            {technicalStudy ? (
+              <div className="ichimokuFocus">
+                <div className="ichimokuTitle"><div><Activity/><span><p>ICHIMOKU MIS EN ÉVIDENCE</p><h2>La preuve visuelle du marché actuel</h2></span></div><strong className={technicalStudy.bias === "HAUSSIER" ? "buy" : technicalStudy.bias === "BAISSIER" ? "sell" : "wait"}>{technicalStudy.bias}</strong></div>
+                <div className="ichimokuLayout">
+                  <div className="ichimokuChart">
+                    <ResponsiveContainer width="100%" height={300}><ComposedChart data={technicalStudy.data}><CartesianGrid stroke="#1e3039" vertical={false}/><XAxis dataKey="t" tickFormatter={formatChartTime} minTickGap={40} tick={{fill:"#728690",fontSize:9}} axisLine={false}/><YAxis orientation="right" domain={["auto","auto"]} tick={{fill:"#82959f",fontSize:10}}/><Tooltip labelFormatter={(value) => new Date(Number(value)).toLocaleString(locale)} contentStyle={{background:"#08141d",border:"1px solid #29404e"}}/><Area type="monotone" dataKey="spanA" stroke="#2edb99" fill="#2edb9926" connectNulls name="Senkou A"/><Area type="monotone" dataKey="spanB" stroke="#ff6972" fill="#ff697218" connectNulls name="Senkou B"/><Line type="monotone" dataKey="price" stroke="#e8f2f5" dot={false} strokeWidth={2} name="Prix"/><Line type="monotone" dataKey="tenkan" stroke="#38a8ff" dot={false} strokeWidth={1.5} connectNulls name="Tenkan 9"/><Line type="monotone" dataKey="kijun" stroke="#f3ad22" dot={false} strokeWidth={1.5} connectNulls name="Kijun 26"/></ComposedChart></ResponsiveContainer>
+                    <div className="ichimokuLegend"><span className="priceLine">Prix</span><span className="tenkanLine">Tenkan 9</span><span className="kijunLine">Kijun 26</span><span className="spanALine">Senkou A</span><span className="spanBLine">Senkou B</span></div>
+                  </div>
+                  <div className="ichimokuExplanation"><h3>Pourquoi ce verdict ?</h3><p>Le prix est <b>{technicalStudy.cloudPosition} le nuage</b>. Le croisement Tenkan/Kijun est <b className={technicalStudy.cross === "haussier" ? "buy" : "sell"}>{technicalStudy.cross}</b> et le nuage projeté est <b className={technicalStudy.cloudDirection === "haussier" ? "buy" : "sell"}>{technicalStudy.cloudDirection}</b>.</p><p>La forme est un <b>{technicalStudy.shape}</b>, épais d’environ <b>{technicalStudy.cloudWidth.toFixed(2)} %</b> du cours. Un nuage épais forme une zone plus résistante ; un nuage comprimé augmente le risque de changement de régime.</p><div className="ichimokuFacts"><span>Tenkan-sen<b>{number(technicalStudy.tenkan,5)}</b><small>Équilibre rapide · 9 périodes</small></span><span>Kijun-sen<b>{number(technicalStudy.kijun,5)}</b><small>Équilibre de fond · 26 périodes</small></span><span>Senkou A / B<b>{number(technicalStudy.spanA,5)} / {number(technicalStudy.spanB,5)}</b><small>Limites du nuage projeté</small></span><span>Chikou théorique<b>{number(technicalStudy.chikou,5)}</b><small>Comparaison à 26 périodes</small></span></div><div className="ichimokuVerdict"><ShieldCheck/><p><b>Condition de validation :</b> {technicalStudy.bias === "HAUSSIER" ? "maintien du prix au-dessus du nuage et Tenkan au-dessus de Kijun." : technicalStudy.bias === "BAISSIER" ? "maintien du prix sous le nuage et Tenkan sous Kijun." : "attendre une sortie nette du nuage et un croisement cohérent."}</p></div></div>
+                </div>
+                <footer>Lecture éducative, non prédictive. Les gaps, horaires de marché et annonces peuvent invalider rapidement un signal.</footer>
+              </div>
+            ) : <div className="indicatorEmpty">Au moins 52 observations valides sont nécessaires pour afficher Ichimoku sans inventer de valeurs.</div>}
           </section>
         )}
 
