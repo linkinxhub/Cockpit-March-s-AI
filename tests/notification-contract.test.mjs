@@ -6,6 +6,8 @@ const policy=fs.readFileSync('lib/user-alert-policy.ts','utf8');
 const dispatch=fs.readFileSync('lib/push-dispatch.ts','utf8');
 const deviceRoute=fs.readFileSync('app/api/user-sync/notification-devices/route.ts','utf8');
 const preferencesRoute=fs.readFileSync('app/api/user-sync/notification-preferences/route.ts','utf8');
+const healthRoute=fs.readFileSync('app/api/user-sync/health/route.ts','utf8');
+const healthModule=fs.readFileSync('lib/user-sync-health.ts','utf8');
 const personalizedRoute=fs.readFileSync('app/api/notifications/personalized/route.ts','utf8');
 const previewRoute=fs.readFileSync('app/api/notifications/dispatch-preview/route.ts','utf8');
 const publicKeyRoute=fs.readFileSync('app/api/notifications/web-push-public-key/route.ts','utf8');
@@ -18,80 +20,12 @@ const deviceMigration=fs.readFileSync('db/migrations/0002_notification_devices.s
 const timezoneMigration=fs.readFileSync('db/migrations/0003_notification_timezone.sql','utf8');
 const manifest=fs.readFileSync('app/api/sync/manifest/route.ts','utf8');
 
-test('personalized alert policy enforces user preferences',()=>{
- assert.match(policy,/minimumSeverity/);
- assert.match(policy,/watchedOnly/);
- assert.match(policy,/pushEnabled/);
- assert.match(policy,/quietHours/);
- assert.match(policy,/not_in_watchlist/);
- assert.match(policy,/below_minimum_severity/);
-});
-
-test('quiet hours use user timezone instead of server local time',()=>{
- assert.match(policy,/Intl\.DateTimeFormat/);
- assert.match(policy,/timeZone:prefs\.timeZone/);
- assert.match(policy,/utcOffsetMinutes/);
- assert.doesNotMatch(policy,/now\.getHours\(\)/);
- assert.match(preferencesRoute,/validTimeZone/);
- assert.match(preferencesRoute,/utcOffsetMinutes/);
- assert.match(schema,/time_zone/);
- assert.match(timezoneMigration,/utc_offset_minutes/);
- assert.match(webNotifications,/resolvedOptions\(\)\.timeZone/);
- assert.match(flutterUserSync,/timeZoneOffset\.inMinutes/);
-});
-
-test('device registry is durable and ownership protected',()=>{
- assert.match(schema,/notification_devices/);
- assert.match(deviceMigration,/notification_devices/);
- assert.match(deviceRoute,/getSharedUserIdentity/);
- assert.match(deviceRoute,/device_id_conflict/);
- assert.match(deviceRoute,/web_push_subscription_required/);
- assert.match(deviceRoute,/device_token_required/);
- assert.doesNotMatch(deviceRoute,/PRIVATE_KEY|CLIENT_EMAIL/);
- assert.doesNotMatch(deviceRoute,/token:d\.token|endpoint:d\.endpoint/);
-});
-
-test('push planning requires registered targets and configured providers',()=>{
- assert.match(dispatch,/no_registered_device/);
- assert.match(dispatch,/provider_not_configured/);
- assert.match(dispatch,/targets/);
- assert.match(dispatch,/\/notifications\?asset=/);
- assert.match(previewRoute,/listNotificationDevices/);
- assert.match(previewRoute,/dry-run/);
-});
-
-test('personalized endpoint uses durable user snapshot',()=>{
- assert.match(personalizedRoute,/getSnapshot/);
- assert.match(personalizedRoute,/alertEligibility/);
- assert.match(personalizedRoute,/private, no-store/);
-});
-
-test('web push browser registration is opt-in and server-backed',()=>{
- assert.match(publicKeyRoute,/WEB_PUSH_PUBLIC_KEY/);
- assert.doesNotMatch(publicKeyRoute,/WEB_PUSH_PRIVATE_KEY/);
- assert.match(webNotifications,/Notification\.requestPermission/);
- assert.match(webNotifications,/pushManager\.subscribe/);
- assert.match(webNotifications,/\/api\/user-sync\/notification-devices/);
- assert.match(webNotifications,/crypto\.subtle\.digest/);
- assert.match(webNotifications,/assetFilter/);
- assert.match(webNotifications,/focusEvent/);
- assert.doesNotMatch(webNotifications,/localStorage|sessionStorage/);
- assert.match(serviceWorker,/showNotification/);
- assert.match(serviceWorker,/notificationclick/);
-});
-
-test('flutter can inspect and revoke registered push devices',()=>{
- assert.match(flutterUserSync,/notificationDevices/);
- assert.match(flutterUserSync,/registerNotificationDevice/);
- assert.match(flutterUserSync,/removeNotificationDevice/);
- assert.match(flutterPreferences,/Appareils push enregistrés/);
- assert.match(flutterPreferences,/removeNotificationDevice/);
-});
-
-test('manifest publishes notification contract v2.1',()=>{
- assert.match(manifest,/schemaVersion:'2\.1\.0'/);
- for(const endpoint of ['/api/user-sync/notification-devices','/api/notifications/personalized','/api/notifications/dispatch-preview'])assert.match(manifest,new RegExp(endpoint.replaceAll('/','\\/')));
- assert.match(manifest,/notificationDevices/);
- assert.match(manifest,/timeZoneAware/);
- assert.match(manifest,/dry-run-until-provider-delivery/);
-});
+test('personalized alert policy enforces user preferences',()=>{assert.match(policy,/minimumSeverity/);assert.match(policy,/watchedOnly/);assert.match(policy,/pushEnabled/);assert.match(policy,/quietHours/);assert.match(policy,/not_in_watchlist/);assert.match(policy,/below_minimum_severity/);});
+test('quiet hours use user timezone instead of server local time',()=>{assert.match(policy,/Intl\.DateTimeFormat/);assert.match(policy,/timeZone:prefs\.timeZone/);assert.match(policy,/utcOffsetMinutes/);assert.doesNotMatch(policy,/now\.getHours\(\)/);assert.match(preferencesRoute,/validTimeZone/);assert.match(preferencesRoute,/utcOffsetMinutes/);assert.match(schema,/time_zone/);assert.match(timezoneMigration,/utc_offset_minutes/);assert.match(webNotifications,/resolvedOptions\(\)\.timeZone/);assert.match(flutterUserSync,/timeZoneOffset\.inMinutes/);});
+test('device registry is durable and ownership protected',()=>{assert.match(schema,/notification_devices/);assert.match(deviceMigration,/notification_devices/);assert.match(deviceRoute,/getSharedUserIdentity/);assert.match(deviceRoute,/device_id_conflict/);assert.match(deviceRoute,/web_push_subscription_required/);assert.match(deviceRoute,/device_token_required/);assert.doesNotMatch(deviceRoute,/PRIVATE_KEY|CLIENT_EMAIL/);assert.doesNotMatch(deviceRoute,/token:d\.token|endpoint:d\.endpoint/);});
+test('push planning requires registered targets and configured providers',()=>{assert.match(dispatch,/no_registered_device/);assert.match(dispatch,/provider_not_configured/);assert.match(dispatch,/targets/);assert.match(dispatch,/\/notifications\?asset=/);assert.match(previewRoute,/listNotificationDevices/);assert.match(previewRoute,/dry-run/);});
+test('personalized endpoint uses durable user snapshot',()=>{assert.match(personalizedRoute,/getSnapshot/);assert.match(personalizedRoute,/alertEligibility/);assert.match(personalizedRoute,/private, no-store/);});
+test('storage health is authenticated read-only diagnostics',()=>{assert.match(healthRoute,/getSharedUserIdentity/);assert.match(healthRoute,/getUserSyncHealth/);assert.match(healthModule,/information_schema\.tables/);assert.match(healthModule,/missingTables/);assert.match(healthModule,/notificationTimezone/);assert.doesNotMatch(healthRoute,/DATABASE_URL|POSTGRES_URL|NEON_DATABASE_URL|NEON_POSTGRES_URL/);assert.doesNotMatch(healthModule,/insert\s+into|update\s+|delete\s+from|alter\s+table|create\s+table/i);});
+test('web push browser registration is opt-in and server-backed',()=>{assert.match(publicKeyRoute,/WEB_PUSH_PUBLIC_KEY/);assert.doesNotMatch(publicKeyRoute,/WEB_PUSH_PRIVATE_KEY/);assert.match(webNotifications,/Notification\.requestPermission/);assert.match(webNotifications,/pushManager\.subscribe/);assert.match(webNotifications,/\/api\/user-sync\/notification-devices/);assert.match(webNotifications,/crypto\.subtle\.digest/);assert.match(webNotifications,/assetFilter/);assert.match(webNotifications,/focusEvent/);assert.doesNotMatch(webNotifications,/localStorage|sessionStorage/);assert.match(serviceWorker,/showNotification/);assert.match(serviceWorker,/notificationclick/);});
+test('flutter can inspect and revoke registered push devices',()=>{assert.match(flutterUserSync,/notificationDevices/);assert.match(flutterUserSync,/registerNotificationDevice/);assert.match(flutterUserSync,/removeNotificationDevice/);assert.match(flutterPreferences,/Appareils push enregistrés/);assert.match(flutterPreferences,/removeNotificationDevice/);});
+test('manifest publishes notification and storage contract v2.2',()=>{assert.match(manifest,/schemaVersion:'2\.2\.0'/);for(const endpoint of ['/api/user-sync/health','/api/user-sync/notification-devices','/api/notifications/personalized','/api/notifications/dispatch-preview'])assert.match(manifest,new RegExp(endpoint.replaceAll('/','\\/')));assert.match(manifest,/notificationDevices/);assert.match(manifest,/timeZoneAware/);assert.match(manifest,/healthModule/);assert.match(manifest,/dry-run-until-provider-delivery/);});
