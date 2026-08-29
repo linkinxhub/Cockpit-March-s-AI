@@ -1,0 +1,34 @@
+name: Generate Flutter Native Platforms
+on:
+  push:
+    branches: [feat/precommercialization-audit]
+    paths: ['.github/workflows/generate-flutter-platforms.yml']
+permissions:
+  contents: write
+jobs:
+  generate:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/precommercialization-audit
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Generate Android and iOS projects
+        working-directory: mobile
+        run: flutter create --platforms=android,ios --project-name cockpit_marches_ai --org ai.cockpitmarches .
+      - name: Keep only native scaffolding changes
+        run: |
+          git restore -- mobile/pubspec.yaml mobile/README.md mobile/lib || true
+          git add mobile/android mobile/ios mobile/.metadata
+          git diff --cached --check
+      - name: Commit generated native projects
+        run: |
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Generate Flutter Android and iOS projects'
+          git push origin HEAD:feat/precommercialization-audit
