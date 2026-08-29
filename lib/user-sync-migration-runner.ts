@@ -20,6 +20,7 @@ const statements=[
  `CREATE TABLE IF NOT EXISTS decision_notes (id text PRIMARY KEY,user_id text NOT NULL,asset_key text,note_text text NOT NULL,created_at bigint NOT NULL,updated_at bigint NOT NULL)`,
  `CREATE INDEX IF NOT EXISTS decision_notes_user_idx ON decision_notes(user_id)`,
  `CREATE INDEX IF NOT EXISTS decision_notes_asset_idx ON decision_notes(asset_key)`,
+ `CREATE TABLE IF NOT EXISTS user_workspace_state (user_id text PRIMARY KEY,profile jsonb NOT NULL DEFAULT '{}'::jsonb,price_alerts jsonb NOT NULL DEFAULT '[]'::jsonb,passports jsonb NOT NULL DEFAULT '[]'::jsonb,updated_at bigint NOT NULL)`,
 ] as const;
 
 export async function runUserSyncMigrations(){
