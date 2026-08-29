@@ -4,9 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Cockpit Marchés AI",
   description: "Scanner éducatif pour cryptomonnaies, Forex et indices.",
-  other: {
-    "codex-preview": "development",
-  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

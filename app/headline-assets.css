@@ -1,0 +1,11 @@
+.headlineAssets{flex:1;min-width:260px;max-width:560px;margin:0 20px;overflow:hidden}
+.headlineAssetKinds{display:flex;align-items:center;gap:4px;margin-bottom:7px}
+.headlineAssetKinds button{border:0;background:none;color:#778b97;padding:3px 6px;font-size:8px;font-weight:800;cursor:pointer;border-radius:5px}
+.headlineAssetKinds button:hover,.headlineAssetKinds button.on{background:#12362e;color:#51e4b1}
+.headlineAssetKinds button.all{margin-left:auto;border:1px solid #29424d;color:#9db0ba}
+.headlineAssetRail{display:flex;gap:5px;overflow-x:auto;padding-bottom:3px;scrollbar-width:thin;scrollbar-color:#2b4d57 transparent}
+.headlineAssetRail button{flex:0 0 auto;min-width:68px;border:1px solid #213743;border-radius:7px;background:#091822;color:#d9e4e9;padding:6px 7px;display:flex;align-items:center;justify-content:space-between;gap:7px;cursor:pointer}
+.headlineAssetRail button:hover,.headlineAssetRail button.active{border-color:#2edb99;background:#0e2b26}
+.headlineAssetRail b{font-size:9px}.headlineAssetRail small{font-size:8px}.headlineAssetRail small.off{color:#667b86}
+@media(max-width:980px){.headlineAssets{max-width:430px;margin:0 10px}.headlineAssetKinds button{padding:3px 4px}.headlineAssetRail button{min-width:62px}}
+@media(max-width:760px){.headline{flex-wrap:wrap;gap:9px}.headlineAssets{order:3;flex-basis:100%;max-width:none;margin:0}.headlineAssetKinds{overflow-x:auto}.headlineAssetKinds button{white-space:nowrap}.headlineAssetRail button{min-width:66px}}

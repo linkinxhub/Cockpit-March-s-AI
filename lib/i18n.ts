@@ -1362,6 +1362,7 @@ const words: Record<string, [string, string, string]> = {
   "Rechercher ou choisir un actif…": ["Search or choose an asset…", "Asset suchen oder auswählen…", "Zoek of kies een actief…"],
   "Afficher tous les actifs": ["Show all assets", "Alle Assets anzeigen", "Alle activa tonen"],
   "Tous les actifs de la plateforme": ["All platform assets", "Alle Plattform-Assets", "Alle platformactiva"],
+  "Accès rapide aux actifs": ["Quick asset access", "Schnellzugriff auf Assets", "Snelle toegang tot activa"],
   "catégories": ["categories", "Kategorien", "categorieën"],
   "Aucun actif ne correspond à cette recherche.": ["No asset matches this search.", "Kein Asset entspricht dieser Suche.", "Geen actief komt overeen met deze zoekopdracht."],
 };

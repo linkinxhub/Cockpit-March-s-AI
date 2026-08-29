@@ -23,6 +23,8 @@ import "./openai-auto.css";
 import "./chart-forecast.css";
 import "./sticky-toggle.css";
 import "./asset-search.css";
+import "./headline-assets.css";
+import "./audit-improvements.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -373,6 +375,7 @@ export default function Home() {
   const panoramaRef = useRef<HTMLElement>(null);
   const [stickyEnabled, setStickyEnabled] = useState(true);
   const [inlineForecastOpen, setInlineForecastOpen] = useState(false);
+  const [headlineCategory, setHeadlineCategory] = useState("Indices");
   const [assetSearchOpen, setAssetSearchOpen] = useState(false);
   const assetSearchRef = useRef<HTMLDivElement>(null);
   const locale = { fr: "fr-FR", en: "en-US", de: "de-DE", nl: "nl-NL" }[
@@ -404,7 +407,6 @@ export default function Home() {
   };
   useEffect(() => {
     if (!panoramaOpen) return;
-    setPanoramaCountdown(10);
     const interval = window.setInterval(() => {
       setPanoramaCountdown((seconds) => {
         if (seconds <= 1) {
@@ -1401,6 +1403,7 @@ export default function Home() {
             <label>
               <Search />
               <input
+                role="combobox"
                 placeholder="Rechercher ou choisir un actif…"
                 value={query}
                 onFocus={() => setAssetSearchOpen(true)}
@@ -1551,7 +1554,7 @@ export default function Home() {
         >
           <button
             className="panoramaToggle"
-            onClick={() => setPanoramaOpen((open) => !open)}
+            onClick={() => setPanoramaOpen((open) => { if (!open) setPanoramaCountdown(10); return !open; })}
             aria-expanded={panoramaOpen}
             aria-controls="panorama-content"
           >
@@ -1722,6 +1725,24 @@ export default function Home() {
                       : "scanner actualisé"}
                   </p>
                 </span>
+              </div>
+              <div className="headlineAssets" aria-label="Accès rapide aux actifs">
+                <div className="headlineAssetKinds">
+                  {(["Indices", "Crypto", "Forex", "Métaux", "Baromètres"] as const).map((category) => (
+                    <button key={category} className={headlineCategory === category ? "on" : ""} onClick={() => setHeadlineCategory(category)}>
+                      {category}
+                    </button>
+                  ))}
+                  <button className="all" onClick={() => setAssetSearchOpen(true)}>Tous ({rows.length})</button>
+                </div>
+                <div className="headlineAssetRail">
+                  {rows.filter((row) => row.kind === headlineCategory).map((row) => (
+                    <button key={row.key} className={active.key === row.key ? "active" : ""} onClick={() => { setActive(row); setView("Cockpit"); }} title={`${row.symbol} · ${row.name}`}>
+                      <b>{row.symbol}</b>
+                      <small className={row.unavailable ? "off" : (row.change ?? 0) >= 0 ? "up" : "down"}>{row.unavailable ? "—" : percent(row.change)}</small>
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="price">
                 <b>{number(active.last, 5)}</b>
