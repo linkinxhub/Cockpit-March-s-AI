@@ -16,7 +16,7 @@ export function pushCapabilitiesFromEnv():PushCapabilities{
 }
 
 export function buildPushDispatchPlan(event:NewsAlertEvent,snapshot:UserSyncSnapshot,devices:NotificationDevice[]=[],options?:{now?:Date}):PushDispatchPlan{
- const deepLink=`/asset/${encodeURIComponent(event.assetKey)}?tab=news&event=${encodeURIComponent(event.id)}`;
+ const deepLink=`/notifications?asset=${encodeURIComponent(event.assetKey)}&event=${encodeURIComponent(event.id)}`;
  const eligibility=alertEligibility(event,snapshot,{now:options?.now,requirePush:true});
  if(!eligibility.eligible)return{eligible:false,reason:eligibility.reason,providers:[],targets:[],eventId:event.id,assetKey:event.assetKey,deepLink};
  const caps=pushCapabilitiesFromEnv();
