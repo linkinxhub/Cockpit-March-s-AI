@@ -30,4 +30,14 @@ class ApiClient {
     final response=await _dio.post<Map<String,dynamic>>(path,data:body);
     return response.data??<String,dynamic>{};
   }
+
+  Future<Map<String,dynamic>> patchJson(String path,Map<String,dynamic> body) async {
+    final response=await _dio.patch<Map<String,dynamic>>(path,data:body);
+    return response.data??<String,dynamic>{};
+  }
+
+  Future<Map<String,dynamic>> deleteJson(String path) async {
+    final response=await _dio.delete<Map<String,dynamic>>(path);
+    return response.data??<String,dynamic>{};
+  }
 }
