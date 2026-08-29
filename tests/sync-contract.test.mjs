@@ -7,9 +7,14 @@ const indicatorRoute=fs.readFileSync('app/api/indicators/route.ts','utf8');
 const flutterIndicators=fs.readFileSync('mobile/lib/features/indicators/data/indicator_repository.dart','utf8');
 const flutterHistory=fs.readFileSync('mobile/lib/features/history/data/history_repository.dart','utf8');
 const flutterMarketStatus=fs.readFileSync('mobile/lib/features/markets/data/market_status_repository.dart','utf8');
+const flutterNewsAlerts=fs.readFileSync('mobile/lib/features/news/data/news_alert_repository.dart','utf8');
 const manifest=fs.readFileSync('app/api/sync/manifest/route.ts','utf8');
 const marketSessions=fs.readFileSync('lib/market-sessions.ts','utf8');
 const marketStatusRoute=fs.readFileSync('app/api/market-status/route.ts','utf8');
+const newsSource=fs.readFileSync('lib/news-source.ts','utf8');
+const newsAlertEngine=fs.readFileSync('lib/news-alert-engine.ts','utf8');
+const newsRoute=fs.readFileSync('app/api/news/route.ts','utf8');
+const newsAlertsRoute=fs.readFileSync('app/api/news-alerts/route.ts','utf8');
 
 test('indicator engine exposes every synchronized indicator',()=>{
  for(const name of ['Ichimoku Kinko Hyo','EMA 20 / EMA 50','RSI 14','MACD 12 / 26','Bandes de Bollinger','ATR 14','Supports / Résistances']) assert.match(indicatorEngine,new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
@@ -41,7 +46,17 @@ test('market sessions are centralized and consumed by Flutter',()=>{
  assert.doesNotMatch(flutterMarketStatus,/America\/New_York|Europe\/Brussels|Asia\/Tokyo/);
 });
 
+test('news source and alert classification are centralized',()=>{
+ assert.match(newsRoute,/loadNewsByAsset/);
+ assert.match(newsAlertsRoute,/loadNewsByAsset/);
+ assert.match(newsAlertsRoute,/buildNewsAlerts/);
+ assert.match(newsAlertEngine,/CRITIQUE/);
+ assert.match(newsAlertEngine,/IMPORTANT/);
+ assert.match(newsSource,/newsForAsset/);
+ assert.match(flutterNewsAlerts,/\/api\/news-alerts/);
+});
+
 test('sync manifest publishes contract version and endpoints',()=>{
- assert.match(manifest,/schemaVersion:'1\.1\.0'/);
- for(const endpoint of ['/api/scanner','/api/history','/api/indicators','/api/market-status']) assert.match(manifest,new RegExp(endpoint.replaceAll('/','\\/')));
+ assert.match(manifest,/schemaVersion:'1\.2\.0'/);
+ for(const endpoint of ['/api/scanner','/api/history','/api/indicators','/api/market-status','/api/news','/api/news-alerts']) assert.match(manifest,new RegExp(endpoint.replaceAll('/','\\/')));
 });
