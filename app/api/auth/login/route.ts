@@ -1,0 +1,3 @@
+import{cookies}from'next/headers';
+import{authenticateWebUser,createWebSessionCookie,WEB_SESSION_COOKIE,webAuthConfigured,webSessionCookieOptions}from'@/lib/web-auth';
+export async function POST(req:Request){if(!webAuthConfigured())return Response.json({error:'web_auth_not_configured'},{status:503});try{const body=await req.json()as any,user=await authenticateWebUser(String(body?.email||''),String(body?.password||''));if(!user)return Response.json({error:'invalid_credentials'},{status:401});(await cookies()).set(WEB_SESSION_COOKIE,createWebSessionCookie(user),webSessionCookieOptions);return Response.json({ok:true,user},{headers:{'Cache-Control':'private, no-store'}});}catch{return Response.json({error:'login_failed'},{status:500});}}
