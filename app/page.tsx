@@ -25,6 +25,7 @@ import "./sticky-toggle.css";
 import "./asset-search.css";
 import "./headline-assets.css";
 import "./audit-improvements.css";
+import "./decision-audit.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -131,6 +132,21 @@ type Passport = {
   dataQuality: string;
   createdAt: string;
   positionSize: number | null;
+  reliability?: number | null;
+  newsCount?: number;
+  aiModel?: string;
+  evidence?: string;
+};
+type DecisionEvent = {
+  id: number;
+  key: string;
+  symbol: string;
+  previous: string;
+  next: string;
+  cause: string;
+  period: Timeframe;
+  price: number | null;
+  createdAt: string;
 };
 type BigdataIntel = {
   provider: string;
@@ -356,7 +372,9 @@ export default function Home() {
       dailyLoss: 3,
     }),
     [passports, setPassports] = useState<Passport[]>([]),
+    [decisionEvents, setDecisionEvents] = useState<DecisionEvent[]>([]),
     [storageReady, setStorageReady] = useState(false);
+  const decisionSnapshot = useRef<Record<string, string>>({});
   const [news, setNews] = useState<Record<string, News[]>>({}),
     [newsUpdated, setNewsUpdated] = useState(""),
     [selectedNews, setSelectedNews] = useState<News | null>(null);
@@ -391,6 +409,20 @@ export default function Home() {
       if (!response.ok) throw new Error("scan");
       const d = await response.json();
       if (request !== scanRequest.current) return;
+      let changesSeed = 0;
+      const changes: DecisionEvent[] = d.rows.flatMap((row: Row) => {
+        const previous = decisionSnapshot.current[row.key];
+        if (!previous || previous === row.decision || row.unavailable) return [];
+        const trend = (row.ema20 ?? 0) >= (row.ema50 ?? 0) ? "EMA 20 au-dessus de l’EMA 50" : "EMA 20 sous l’EMA 50";
+        const momentum = row.rsi === null ? "RSI indisponible" : `RSI ${row.rsi.toFixed(1)}`;
+        return [{
+          id: Date.now() + changesSeed++, key: row.key, symbol: row.symbol,
+          previous, next: row.decision, cause: `${trend} · ${momentum} · confiance ${row.confidence ?? "—"}%`,
+          period: timeframe, price: row.last, createdAt: new Date().toISOString(),
+        }];
+      });
+      decisionSnapshot.current = Object.fromEntries(d.rows.map((row: Row) => [row.key, row.decision]));
+      if (changes.length) setDecisionEvents((events) => [...changes, ...events].slice(0, 100));
       setRows(d.rows);
       setActive(
         (a) =>
@@ -536,11 +568,13 @@ export default function Home() {
       const a = localStorage.getItem("cockpit-alerts-v1"),
         j = localStorage.getItem("cockpit-journal-v1"),
         p = localStorage.getItem("cockpit-profile-v1"),
-        d = localStorage.getItem("cockpit-passports-v1");
+        d = localStorage.getItem("cockpit-passports-v1"),
+        e = localStorage.getItem("cockpit-decision-events-v1");
       if (a) setAlerts(JSON.parse(a));
       if (j) setJournal(JSON.parse(j));
       if (p) setProfile(JSON.parse(p));
       if (d) setPassports(JSON.parse(d));
+      if (e) setDecisionEvents(JSON.parse(e));
     } catch {
     } finally {
       setStorageReady(true);
@@ -552,7 +586,8 @@ export default function Home() {
     localStorage.setItem("cockpit-journal-v1", JSON.stringify(journal));
     localStorage.setItem("cockpit-profile-v1", JSON.stringify(profile));
     localStorage.setItem("cockpit-passports-v1", JSON.stringify(passports));
-  }, [alerts, journal, profile, passports, storageReady]);
+    localStorage.setItem("cockpit-decision-events-v1", JSON.stringify(decisionEvents));
+  }, [alerts, journal, profile, passports, decisionEvents, storageReady]);
   useEffect(() => {
     const saved = localStorage.getItem("cockpit-language") as Lang | null;
     if (saved && ["fr", "en", "de", "nl"].includes(saved)) setLanguage(saved);
@@ -721,6 +756,10 @@ export default function Home() {
           dataQuality: active.unavailable ? "Indisponible" : "Complète",
           createdAt: new Date().toLocaleString(locale),
           positionSize,
+          reliability: selectedForecast?.reliability ?? null,
+          newsCount: news[active.key]?.length || 0,
+          aiModel: openAiAnalysis?.model || "Moteur quantitatif explicable",
+          evidence: `${updated || "Source marché"} · ${timeframeLabel}`,
         },
         ...p,
       ].slice(0, 100),
@@ -732,6 +771,8 @@ export default function Home() {
     let trades = 0,
       wins = 0,
       net = 0,
+      grossProfit = 0,
+      grossLoss = 0,
       peak = 0,
       maxDrawdown = 0;
     for (let i = 21; i < chart.length - 1; i++) {
@@ -741,18 +782,26 @@ export default function Home() {
       if (prev.price <= prev.ema && cur.price > cur.ema) {
         const ret = ((next.price - cur.price) / cur.price) * 100 - 0.12;
         trades++;
-        if (ret > 0) wins++;
+        if (ret > 0) { wins++; grossProfit += ret; }
+        else grossLoss += Math.abs(ret);
         net += ret;
         peak = Math.max(peak, net);
         maxDrawdown = Math.max(maxDrawdown, peak - net);
       }
     }
+    const first = chart[0]?.price,
+      last = chart.at(-1)?.price,
+      buyHold = first && last ? ((last - first) / first) * 100 : 0;
     return {
       trades,
       wins,
       winRate: trades ? (wins / trades) * 100 : 0,
       net,
       maxDrawdown,
+      averageTrade: trades ? net / trades : 0,
+      profitFactor: grossLoss ? grossProfit / grossLoss : grossProfit ? Infinity : 0,
+      buyHold,
+      sampleQuality: trades >= 30 ? "Robuste" : trades >= 20 ? "À confirmer" : "Insuffisant",
     };
   }, [chart]);
   const available = rows.filter((r) => !r.unavailable),
@@ -952,6 +1001,24 @@ export default function Home() {
   }, [active, news, timeframeComparisons, timeframe, bigdata?.bias]);
   const selectedForecast =
     forecasts.find((f) => f.period === timeframe) || forecasts[0];
+  const opposingHorizons = timeframeComparisons.filter(
+      (item) => item.decision !== active.decision && item.decision !== "ATTENDRE",
+    ),
+    latestDecisionEvent = decisionEvents.find((event) => event.key === active.key),
+    evidenceScore = active.unavailable
+      ? 0
+      : Math.min(100, Math.round(
+          35 +
+          (timeframeComparisons.length ? 20 : 0) +
+          ((news[active.key]?.length || 0) ? 15 : 0) +
+          (bigdata?.connected ? 15 : 0) +
+          (openAiAnalysis ? 15 : 0),
+        )),
+    conditionalSignal = active.decision === "ACHETER"
+      ? `Biais haussier seulement au-dessus de ${number(active.resistance, 5)} ; invalidation sous ${number(active.support, 5)}.`
+      : active.decision === "VENDRE"
+        ? `Biais baissier seulement sous ${number(active.support, 5)} ; invalidation au-dessus de ${number(active.resistance, 5)}.`
+        : `Rester en observation entre ${number(active.support, 5)} et ${number(active.resistance, 5)} jusqu’à une clôture confirmée.`;
   const runOpenAiAnalysis = async (force = false, signal?: AbortSignal) => {
     if (!selectedForecast || active.unavailable) return;
     const analysisKey = [active.key, timeframe, language, analysisRevision, active.last,
@@ -2065,6 +2132,58 @@ export default function Home() {
                 </div>
               )}
             </section>
+            <section className="decisionAudit" aria-label="Contrôle et preuves de la décision">
+              <div className="decisionAuditHead">
+                <div>
+                  <p>CONTRÔLE DE LA DÉCISION</p>
+                  <h2>Preuves, divergences et conditions d’activation</h2>
+                </div>
+                <span className={evidenceScore >= 70 ? "strong" : evidenceScore >= 45 ? "partial" : "weak"}>
+                  Qualité des preuves {evidenceScore}%
+                </span>
+              </div>
+              <div className="decisionAuditGrid">
+                <article>
+                  <Activity />
+                  <div>
+                    <h3>Accord entre les périodes</h3>
+                    <b>{alignedComparisons}/{timeframeComparisons.length || "—"} horizons alignés</b>
+                    <p>{opposingHorizons.length
+                      ? `Contradiction détectée sur ${opposingHorizons.map((item) => timeframes.find(([key]) => key === item.period)?.[1] || item.period).join(", ")}. Le signal court terme ne doit pas masquer la tendance opposée.`
+                      : timeframeComparisons.length
+                        ? "Aucun horizon directionnel directement opposé n’est détecté dans la comparaison actuelle."
+                        : "La comparaison multi-périodes n’est pas encore disponible."}</p>
+                  </div>
+                </article>
+                <article>
+                  <TrendingUp />
+                  <div>
+                    <h3>Scénario conditionnel</h3>
+                    <b>{active.decision === "ACHETER" ? "Haussier sous condition" : active.decision === "VENDRE" ? "Baissier sous condition" : "Observation"}</b>
+                    <p>{conditionalSignal}</p>
+                  </div>
+                </article>
+                <article>
+                  <ClipboardCheck />
+                  <div>
+                    <h3>Dernier changement expliqué</h3>
+                    {latestDecisionEvent ? <>
+                      <b>{latestDecisionEvent.previous} → {latestDecisionEvent.next}</b>
+                      <p>{latestDecisionEvent.cause} · {new Date(latestDecisionEvent.createdAt).toLocaleString(locale)}</p>
+                    </> : <>
+                      <b>Aucun changement enregistré</b>
+                      <p>Le suivi commencera dès qu’un nouveau calcul modifiera la décision de cet actif.</p>
+                    </>}
+                  </div>
+                </article>
+              </div>
+              <footer>
+                <span>Marché : {active.unavailable ? "indisponible" : updated || "actualisé"}</span>
+                <span>Actualités : {news[active.key]?.length || 0}</span>
+                <span>Contexte Bigdata : {bigdata?.connected ? "connecté" : "non confirmé"}</span>
+                <span>IA explicative : {openAiAnalysis?.model || "non générée"}</span>
+              </footer>
+            </section>
             <DecisionCenter r={active} />
             <section className="trustPassport">
               <div>
@@ -3093,6 +3212,26 @@ export default function Home() {
                     <b>{backtest.maxDrawdown.toFixed(2)}%</b>
                     <small>baisse depuis le meilleur niveau</small>
                   </article>
+                  <article>
+                    <span>Gain moyen par signal</span>
+                    <b className={backtest.averageTrade >= 0 ? "buy" : "sell"}>{backtest.averageTrade.toFixed(2)}%</b>
+                    <small>après frais théoriques</small>
+                  </article>
+                  <article>
+                    <span>Facteur de profit</span>
+                    <b>{Number.isFinite(backtest.profitFactor) ? backtest.profitFactor.toFixed(2) : "∞"}</b>
+                    <small>gains bruts divisés par pertes brutes</small>
+                  </article>
+                  <article>
+                    <span>Référence passive</span>
+                    <b className={backtest.buyHold >= 0 ? "buy" : "sell"}>{backtest.buyHold >= 0 ? "+" : ""}{backtest.buyHold.toFixed(2)}%</b>
+                    <small>achat-conservation sur le même échantillon</small>
+                  </article>
+                  <article>
+                    <span>Qualité de l’échantillon</span>
+                    <b>{backtest.sampleQuality}</b>
+                    <small>{backtest.trades} signaux observés</small>
+                  </article>
                 </div>
                 <div className="backtestNotice">
                   <ShieldCheck />
@@ -3179,9 +3318,17 @@ export default function Home() {
                             : number(p.positionSize, 4) + " unités"}
                         </b>
                       </span>
+                      <span>
+                        Fiabilité prévisionnelle
+                        <b>{p.reliability == null ? "—" : p.reliability + "%"}</b>
+                      </span>
+                      <span>
+                        Preuves contextuelles
+                        <b>{p.newsCount ?? 0} actualités · {p.aiModel || "Moteur quantitatif"}</b>
+                      </span>
                     </div>
                     <footer>
-                      <span>{p.createdAt}</span>
+                      <span>{p.createdAt}{p.evidence ? ` · ${p.evidence}` : ""}</span>
                       <button
                         onClick={() =>
                           setPassports((x) => x.filter((v) => v.id !== p.id))
