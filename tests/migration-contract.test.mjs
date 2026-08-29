@@ -16,10 +16,14 @@ test('migration endpoint is preview and branch restricted',()=>{
  assert.match(route,/APPLY_USER_SYNC_V1/);
 });
 
-test('migration runner uses only versioned idempotent migrations',()=>{
- assert.match(runner,/0001_user_sync_postgres\.sql/);
- assert.match(runner,/0002_notification_devices\.sql/);
- assert.match(runner,/0003_notification_timezone\.sql/);
+test('migration runner is idempotent and matches versioned schema intent',()=>{
+ for(const table of ['user_profiles','watchlist_items','notification_preferences','notification_reads','notification_devices','paper_trades'])assert.match(runner,new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
+ assert.match(runner,/CREATE INDEX IF NOT EXISTS watchlist_items_user_idx/);
+ assert.match(runner,/CREATE INDEX IF NOT EXISTS notification_devices_user_idx/);
+ assert.match(runner,/ADD COLUMN IF NOT EXISTS time_zone/);
+ assert.match(runner,/ADD COLUMN IF NOT EXISTS utc_offset_minutes/);
+ assert.match(runner,/getUserSyncHealth/);
+ assert.match(runner,/migration_incomplete/);
  assert.match(migration1,/CREATE TABLE IF NOT EXISTS/);
  assert.match(migration2,/CREATE TABLE IF NOT EXISTS notification_devices/);
  assert.match(migration3,/ADD COLUMN IF NOT EXISTS time_zone/);
