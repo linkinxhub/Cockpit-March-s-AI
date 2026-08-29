@@ -26,6 +26,7 @@ import "./asset-search.css";
 import "./headline-assets.css";
 import "./audit-improvements.css";
 import "./decision-audit.css";
+import "./technical-indicators.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -90,6 +91,7 @@ type Row = {
   resistance: number | null;
   unavailable: boolean;
 };
+type ChartPoint = { t: number; price: number; high?: number; low?: number; ema: number };
 type News = {
   id: string;
   title: string;
@@ -213,6 +215,24 @@ const seed: Row[] = base.map((x) => ({
   resistance: null,
   unavailable: true,
 }));
+
+const indexSessions: Record<string, { venue: string; zone: string; ranges: [number, number][] }> = {
+  SP500:{venue:"New York",zone:"America/New_York",ranges:[[570,960]]},NASDAQ100:{venue:"New York",zone:"America/New_York",ranges:[[570,960]]},DOWJONES:{venue:"New York",zone:"America/New_York",ranges:[[570,960]]},RUSSELL2000:{venue:"New York",zone:"America/New_York",ranges:[[570,960]]},
+  DAX40:{venue:"Francfort",zone:"Europe/Berlin",ranges:[[540,1050]]},CAC40:{venue:"Paris",zone:"Europe/Paris",ranges:[[540,1050]]},STOXX50:{venue:"Europe",zone:"Europe/Paris",ranges:[[540,1050]]},STOXX600:{venue:"Europe",zone:"Europe/Paris",ranges:[[540,1050]]},
+  FTSE100:{venue:"Londres",zone:"Europe/London",ranges:[[480,990]]},NIKKEI225:{venue:"Tokyo",zone:"Asia/Tokyo",ranges:[[540,690],[750,930]]},HANGSENG:{venue:"Hong Kong",zone:"Asia/Hong_Kong",ranges:[[570,720],[780,960]]},ASX200:{venue:"Sydney",zone:"Australia/Sydney",ranges:[[600,960]]},
+  CSI300:{venue:"Shanghai",zone:"Asia/Shanghai",ranges:[[570,690],[780,900]]},SSECOMP:{venue:"Shanghai",zone:"Asia/Shanghai",ranges:[[570,690],[780,900]]},NIFTY50:{venue:"Mumbai",zone:"Asia/Kolkata",ranges:[[555,930]]},KOSPI:{venue:"Séoul",zone:"Asia/Seoul",ranges:[[540,930]]},
+  AEX25:{venue:"Amsterdam",zone:"Europe/Amsterdam",ranges:[[540,1050]]},BEL20:{venue:"Bruxelles",zone:"Europe/Brussels",ranges:[[540,1050]]},SMI20:{venue:"Zurich",zone:"Europe/Zurich",ranges:[[540,1050]]},IBEX35:{venue:"Madrid",zone:"Europe/Madrid",ranges:[[540,1050]]},FTSEMIB:{venue:"Milan",zone:"Europe/Rome",ranges:[[540,1050]]},
+  TSX60:{venue:"Toronto",zone:"America/Toronto",ranges:[[570,960]]},IBOVESPA:{venue:"São Paulo",zone:"America/Sao_Paulo",ranges:[[600,1020]]},OMX30:{venue:"Stockholm",zone:"Europe/Stockholm",ranges:[[540,1050]]},
+};
+function indexMarketStatus(key: string, date: Date) {
+  const schedule = indexSessions[key];
+  if (!schedule) return null;
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone:schedule.zone, weekday:"short", hour:"2-digit", minute:"2-digit", hourCycle:"h23" }).formatToParts(date);
+  const value = (type:string) => parts.find((part) => part.type === type)?.value || "";
+  const weekday = value("weekday"), minutes = Number(value("hour")) * 60 + Number(value("minute"));
+  const weekdayOpen = !["Sat","Sun"].includes(weekday), open = weekdayOpen && schedule.ranges.some(([start,end]) => minutes >= start && minutes < end);
+  return { ...schedule, open, localTime:`${value("hour")}:${value("minute")}` };
+}
 const nav = [
   [LayoutDashboard, "Cockpit"],
   [Gauge, "Opportunités"],
@@ -343,7 +363,7 @@ export default function Home() {
     [view, setView] = useState("Cockpit"),
     [kind, setKind] = useState("Tous"),
     [query, setQuery] = useState(""),
-    [chart, setChart] = useState<any[]>([]),
+    [chart, setChart] = useState<ChartPoint[]>([]),
     [timeframe, setTimeframe] = useState<Timeframe>("1d"),
     [chartLoading, setChartLoading] = useState(true),
     [timeframeComparisons, setTimeframeComparisons] = useState<
@@ -392,6 +412,7 @@ export default function Home() {
   const [panoramaCountdown, setPanoramaCountdown] = useState(10);
   const panoramaRef = useRef<HTMLElement>(null);
   const [stickyEnabled, setStickyEnabled] = useState(true);
+  const [currentNow, setCurrentNow] = useState(() => new Date());
   const [inlineForecastOpen, setInlineForecastOpen] = useState(false);
   const [headlineCategory, setHeadlineCategory] = useState("Indices");
   const [assetSearchOpen, setAssetSearchOpen] = useState(false);
@@ -437,6 +458,10 @@ export default function Home() {
       if (request === scanRequest.current) setScanning(false);
     }
   };
+  useEffect(() => {
+    const clock = window.setInterval(() => setCurrentNow(new Date()), 30000);
+    return () => window.clearInterval(clock);
+  }, []);
   useEffect(() => {
     if (!panoramaOpen) return;
     const interval = window.setInterval(() => {
@@ -1001,6 +1026,44 @@ export default function Home() {
   }, [active, news, timeframeComparisons, timeframe, bigdata?.bias]);
   const selectedForecast =
     forecasts.find((f) => f.period === timeframe) || forecasts[0];
+  const technicalStudy = useMemo(() => {
+    if (chart.length < 52) return null;
+    const midpoint = (end:number, period:number) => {
+        const window = chart.slice(Math.max(0, end - period + 1), end + 1),
+          highs = window.map((point) => Number.isFinite(point.high) ? Number(point.high) : point.price),
+          lows = window.map((point) => Number.isFinite(point.low) ? Number(point.low) : point.price);
+        return (Math.max(...highs) + Math.min(...lows)) / 2;
+      },
+      emaValue = (values:number[], period:number) => {
+        const alpha = 2 / (period + 1);
+        return values.reduce((value, next, index) => index ? next * alpha + value * (1 - alpha) : next, values[0]);
+      },
+      ichimokuData = chart.map((point,index) => {
+        const tenkan = index >= 8 ? midpoint(index,9) : null,
+          kijun = index >= 25 ? midpoint(index,26) : null,
+          spanB = index >= 51 ? midpoint(index,52) : null;
+        return { ...point, tenkan, kijun, spanA:tenkan !== null && kijun !== null ? (tenkan + kijun) / 2 : null, spanB };
+      }),
+      latest = ichimokuData.at(-1)!, prices = chart.map((point) => point.price),
+      cloudTop = Math.max(latest.spanA ?? latest.price, latest.spanB ?? latest.price),
+      cloudBottom = Math.min(latest.spanA ?? latest.price, latest.spanB ?? latest.price),
+      cloudWidth = latest.price ? ((cloudTop - cloudBottom) / latest.price) * 100 : 0,
+      cloudPosition = latest.price > cloudTop ? "au-dessus" : latest.price < cloudBottom ? "en dessous" : "dans",
+      cross = (latest.tenkan ?? 0) > (latest.kijun ?? 0) ? "haussier" : "baissier",
+      cloudDirection = (latest.spanA ?? 0) > (latest.spanB ?? 0) ? "haussier" : "baissier",
+      macd = emaValue(prices.slice(-80),12) - emaValue(prices.slice(-80),26),
+      last20 = prices.slice(-20), mean = last20.reduce((sum,value) => sum + value,0) / last20.length,
+      deviation = Math.sqrt(last20.reduce((sum,value) => sum + Math.pow(value - mean,2),0) / last20.length),
+      bollingerUpper = mean + deviation * 2, bollingerLower = mean - deviation * 2,
+      atrWindow = chart.slice(-14), atr = atrWindow.reduce((sum,point) => sum + ((point.high ?? point.price) - (point.low ?? point.price)),0) / atrWindow.length;
+    const shape = cloudWidth < .18 ? "nuage comprimé" : cloudWidth > 1.2 ? "nuage épais" : "nuage équilibré";
+    return {
+      data:ichimokuData.slice(-80), tenkan:latest.tenkan, kijun:latest.kijun, spanA:latest.spanA, spanB:latest.spanB,
+      chikou:chart.at(-27)?.price ?? null, cloudPosition, cross, cloudDirection, cloudWidth, shape, macd,
+      bollingerUpper, bollingerLower, atr,
+      bias:cloudPosition === "au-dessus" && cross === "haussier" && cloudDirection === "haussier" ? "HAUSSIER" : cloudPosition === "en dessous" && cross === "baissier" && cloudDirection === "baissier" ? "BAISSIER" : "MIXTE",
+    };
+  }, [chart]);
   const opposingHorizons = timeframeComparisons.filter(
       (item) => item.decision !== active.decision && item.decision !== "ATTENDRE",
     ),
@@ -1019,6 +1082,7 @@ export default function Home() {
       : active.decision === "VENDRE"
         ? `Biais baissier seulement sous ${number(active.support, 5)} ; invalidation au-dessus de ${number(active.resistance, 5)}.`
         : `Rester en observation entre ${number(active.support, 5)} et ${number(active.resistance, 5)} jusqu’à une clôture confirmée.`;
+  const marketSession = active.kind === "Indices" ? indexMarketStatus(active.key,currentNow) : null;
   const runOpenAiAnalysis = async (force = false, signal?: AbortSignal) => {
     if (!selectedForecast || active.unavailable) return;
     const analysisKey = [active.key, timeframe, language, analysisRevision, active.last,
@@ -1793,6 +1857,15 @@ export default function Home() {
                   </p>
                 </span>
               </div>
+              {marketSession && (
+                <div className={"marketSession " + (marketSession.open ? "open" : "closed")} title="Horaire indicatif hors jours fériés et interruptions exceptionnelles">
+                  <i />
+                  <span>
+                    <b>{marketSession.open ? "MARCHÉ OUVERT" : "MARCHÉ FERMÉ"}</b>
+                    <small>{marketSession.venue} · {marketSession.localTime} heure locale</small>
+                  </span>
+                </div>
+              )}
               <div className="headlineAssets" aria-label="Accès rapide aux actifs">
                 <div className="headlineAssetKinds">
                   {(["Indices", "Crypto", "Forex", "Métaux", "Baromètres"] as const).map((category) => (
@@ -2042,6 +2115,62 @@ export default function Home() {
                   <small>{m[2]} · cliquer pour comprendre</small>
                 </button>
               ))}
+            </section>
+            <section className="technicalIndicators" data-guide="technical-indicators">
+              <div className="technicalHead">
+                <div>
+                  <p>INDICATEURS TECHNIQUES</p>
+                  <h2>Lecture instantanée sur {timeframeLabel}</h2>
+                  <span>Les calculs utilisent exactement l’historique de la période active et se recalculent lors de chaque changement.</span>
+                </div>
+                <strong>{technicalStudy ? `${active.symbol} · ${technicalStudy.bias}` : "Historique insuffisant"}</strong>
+              </div>
+              <div className="indicatorSummary">
+                <article><span>EMA 20 / EMA 50</span><b className={(active.ema20 ?? 0) >= (active.ema50 ?? 0) ? "buy" : "sell"}>{(active.ema20 ?? 0) >= (active.ema50 ?? 0) ? "Tendance haussière" : "Tendance baissière"}</b><small>Direction moyenne du prix</small></article>
+                <article><span>RSI 14</span><b>{active.rsi === null ? "—" : active.rsi.toFixed(1)}</b><small>{active.rsi === null ? "Indisponible" : active.rsi > 70 ? "Zone de surachat" : active.rsi < 30 ? "Zone de survente" : "Zone équilibrée"}</small></article>
+                <article><span>MACD 12/26</span><b className={(technicalStudy?.macd ?? 0) >= 0 ? "buy" : "sell"}>{technicalStudy ? number(technicalStudy.macd,5) : "—"}</b><small>{technicalStudy ? (technicalStudy.macd >= 0 ? "Momentum moyen positif" : "Momentum moyen négatif") : "Historique insuffisant"}</small></article>
+                <article><span>Bandes de Bollinger</span><b>{technicalStudy ? `${number(technicalStudy.bollingerLower,4)} — ${number(technicalStudy.bollingerUpper,4)}` : "—"}</b><small>Zone statistique autour de la moyenne 20</small></article>
+                <article><span>ATR 14</span><b>{technicalStudy ? number(technicalStudy.atr,5) : "—"}</b><small>Amplitude moyenne, pas une direction</small></article>
+              </div>
+              {technicalStudy ? (
+                <div className="ichimokuFocus">
+                  <div className="ichimokuTitle">
+                    <div><Activity /><span><p>INDICATEUR MIS EN ÉVIDENCE</p><h2>Ichimoku Kinko Hyo</h2></span></div>
+                    <strong className={technicalStudy.bias === "HAUSSIER" ? "buy" : technicalStudy.bias === "BAISSIER" ? "sell" : "wait"}>{technicalStudy.bias}</strong>
+                  </div>
+                  <div className="ichimokuLayout">
+                    <div className="ichimokuChart">
+                      <ResponsiveContainer width="100%" height={300}>
+                        <ComposedChart data={technicalStudy.data}>
+                          <CartesianGrid stroke="#1e3039" vertical={false}/>
+                          <XAxis dataKey="t" tickFormatter={formatChartTime} minTickGap={40} tick={{fill:"#728690",fontSize:9}} axisLine={false}/>
+                          <YAxis orientation="right" domain={["auto","auto"]} tick={{fill:"#82959f",fontSize:10}}/>
+                          <Tooltip labelFormatter={(value) => new Date(Number(value)).toLocaleString(locale)} contentStyle={{background:"#08141d",border:"1px solid #29404e"}}/>
+                          <Area type="monotone" dataKey="spanA" stroke="#2edb99" fill="#2edb9926" connectNulls name="Senkou A"/>
+                          <Area type="monotone" dataKey="spanB" stroke="#ff6972" fill="#ff697218" connectNulls name="Senkou B"/>
+                          <Line type="monotone" dataKey="price" stroke="#e8f2f5" dot={false} strokeWidth={2} name="Prix"/>
+                          <Line type="monotone" dataKey="tenkan" stroke="#38a8ff" dot={false} strokeWidth={1.5} connectNulls name="Tenkan 9"/>
+                          <Line type="monotone" dataKey="kijun" stroke="#f3ad22" dot={false} strokeWidth={1.5} connectNulls name="Kijun 26"/>
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                      <div className="ichimokuLegend"><span className="priceLine">Prix</span><span className="tenkanLine">Tenkan 9</span><span className="kijunLine">Kijun 26</span><span className="spanALine">Senkou A</span><span className="spanBLine">Senkou B</span></div>
+                    </div>
+                    <div className="ichimokuExplanation">
+                      <h3>Ce que montre la forme actuelle</h3>
+                      <p>Le prix se trouve <b>{technicalStudy.cloudPosition} le nuage</b>. Le croisement Tenkan/Kijun est <b className={technicalStudy.cross === "haussier" ? "buy" : "sell"}>{technicalStudy.cross}</b> et le nuage projeté est orienté <b className={technicalStudy.cloudDirection === "haussier" ? "buy" : "sell"}>{technicalStudy.cloudDirection}</b>.</p>
+                      <p>La forme est celle d’un <b>{technicalStudy.shape}</b>, d’une épaisseur proche de <b>{technicalStudy.cloudWidth.toFixed(2)} %</b> du cours. Un nuage épais représente une zone de support/résistance plus difficile à traverser ; un nuage comprimé signale une protection plus faible et une possibilité de changement de régime.</p>
+                      <div className="ichimokuFacts">
+                        <span>Tenkan-sen<b>{number(technicalStudy.tenkan,5)}</b><small>Équilibre rapide sur 9 périodes</small></span>
+                        <span>Kijun-sen<b>{number(technicalStudy.kijun,5)}</b><small>Équilibre de fond sur 26 périodes</small></span>
+                        <span>Senkou A / B<b>{number(technicalStudy.spanA,5)} / {number(technicalStudy.spanB,5)}</b><small>Limites du nuage projeté</small></span>
+                        <span>Chikou théorique<b>{number(technicalStudy.chikou,5)}</b><small>Prix comparé à 26 périodes en arrière</small></span>
+                      </div>
+                      <div className="ichimokuVerdict"><ShieldCheck/><p><b>Lecture instantanée :</b> {technicalStudy.bias === "HAUSSIER" ? "les trois confirmations principales sont haussières. Une clôture durable au-dessus du nuage soutient le scénario, à condition que Tenkan reste au-dessus de Kijun." : technicalStudy.bias === "BAISSIER" ? "les trois confirmations principales sont baissières. Une reprise dans le nuage ou un croisement haussier Tenkan/Kijun fragiliserait ce scénario." : "les composantes ne sont pas alignées. Le prix dans le nuage ou des lignes opposées décrivent une phase d’incertitude ; attendre une sortie confirmée est plus prudent."}</p></div>
+                    </div>
+                  </div>
+                  <footer>Ichimoku utilise les plus hauts et plus bas disponibles. Les horaires de marché, les gaps et les annonces peuvent modifier rapidement sa lecture ; ce signal reste éducatif et non prédictif.</footer>
+                </div>
+              ) : <div className="indicatorEmpty">Au moins 52 observations valides sont nécessaires pour calculer Ichimoku sans inventer de valeurs.</div>}
             </section>
             <section className="multiTimeframe">
               <div className="mtfHead">
