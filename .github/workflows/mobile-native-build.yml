@@ -30,6 +30,19 @@ jobs:
         run: flutter build appbundle --release
       - name: Verify bundle exists
         run: test -s mobile/build/app/outputs/bundle/release/app-release.aab
+      - name: Build installable Android test APK
+        working-directory: mobile
+        run: flutter build apk --release --dart-define=API_BASE_URL=https://cockpit-march-s-ai.vercel.app
+      - name: Prepare APK artifact
+        run: |
+          test -s mobile/build/app/outputs/flutter-apk/app-release.apk
+          cp mobile/build/app/outputs/flutter-apk/app-release.apk Cockpit-Marches-AI-test.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cockpit-marches-ai-test-apk
+          path: Cockpit-Marches-AI-test.apk
+          if-no-files-found: error
+          retention-days: 7
 
   ios:
     name: iOS release compile no codesign
