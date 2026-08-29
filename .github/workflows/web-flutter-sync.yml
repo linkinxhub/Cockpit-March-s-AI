@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: '22'
       - name: Verify Web ↔ Flutter and commercial contracts
-        run: node --test tests/sync-contract.test.mjs tests/notification-contract.test.mjs tests/migration-contract.test.mjs tests/user-sync-smoke-contract.test.mjs tests/main-watchlist-contract.test.mjs tests/decision-journal-contract.test.mjs tests/ichimoku-chart-contract.test.mjs tests/workspace-contract.test.mjs tests/vercel-deployment-contract.test.mjs tests/commercial-contract.test.mjs tests/push-delivery-contract.test.mjs tests/mobile-release-contract.test.mjs
+        run: node --test tests/sync-contract.test.mjs tests/notification-contract.test.mjs tests/migration-contract.test.mjs tests/user-sync-smoke-contract.test.mjs tests/main-watchlist-contract.test.mjs tests/decision-journal-contract.test.mjs tests/ichimoku-chart-contract.test.mjs tests/workspace-contract.test.mjs tests/vercel-deployment-contract.test.mjs tests/commercial-contract.test.mjs tests/push-delivery-contract.test.mjs tests/mobile-release-contract.test.mjs tests/auth-pairing-contract.test.mjs
       - name: Confirm shared engines and commercial surfaces are present
         run: |
           test -s lib/indicator-engine.ts
@@ -41,6 +41,8 @@ jobs:
           test -s mobile/lib/features/indicators/data/indicator_repository.dart
           test -s app/api/billing/webhook/route.ts
           test -s app/api/commercial-readiness/route.ts
+          test -s app/api/auth/login/route.ts
+          test -s app/api/mobile-pair/claim/route.ts
           test -s mobile/lib/features/billing/data/billing_repository.dart
           test -s mobile/android/app/build.gradle.kts
           test -s mobile/ios/Runner.xcodeproj/project.pbxproj
