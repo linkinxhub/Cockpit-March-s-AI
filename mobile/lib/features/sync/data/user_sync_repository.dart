@@ -18,14 +18,19 @@ class SyncNotificationPreferences{
 class UserSyncSnapshot{
   const UserSyncSnapshot({required this.watchlist,required this.notificationPreferences,required this.readNotificationIds});
   final List<String> watchlist,readNotificationIds;final SyncNotificationPreferences notificationPreferences;
-  factory UserSyncSnapshot.fromJson(Map<String,dynamic> json){final prefs=json['notificationPreferences'];return UserSyncSnapshot(watchlist:(json['watchlist'] as List<dynamic>???const[]).map((e)=>e.toString()).toList(growable:false),notificationPreferences:SyncNotificationPreferences.fromJson(prefs is Map<String,dynamic>?prefs:<String,dynamic>{}),readNotificationIds:(json['readNotificationIds'] as List<dynamic>???const[]).map((e)=>e.toString()).toList(growable:false));}
+  factory UserSyncSnapshot.fromJson(Map<String,dynamic> json){
+    final prefs=json['notificationPreferences'];
+    final watchlist=json['watchlist'] as List<dynamic>? ?? const <dynamic>[];
+    final reads=json['readNotificationIds'] as List<dynamic>? ?? const <dynamic>[];
+    return UserSyncSnapshot(watchlist:watchlist.map((e)=>e.toString()).toList(growable:false),notificationPreferences:SyncNotificationPreferences.fromJson(prefs is Map<String,dynamic>?prefs:<String,dynamic>{}),readNotificationIds:reads.map((e)=>e.toString()).toList(growable:false));
+  }
 }
 
 class UserSyncRepository{
   UserSyncRepository(this._api);final ApiClient _api;
   Future<UserSyncCapabilities> capabilities()async=>UserSyncCapabilities.fromJson(await _api.getJson('/api/user-sync/capabilities'));
   Future<UserSyncSnapshot> snapshot()async{final json=await _api.getJson('/api/user-sync/snapshot');return UserSyncSnapshot.fromJson((json['snapshot'] as Map<String,dynamic>?)??<String,dynamic>{});}
-  Future<List<String>> setWatchlist(List<String> assetKeys)async{final json=await _api.putJson('/api/user-sync/watchlist',{'assetKeys':assetKeys});return(json['watchlist'] as List<dynamic>???const[]).map((e)=>e.toString()).toList(growable:false);}
+  Future<List<String>> setWatchlist(List<String> assetKeys)async{final json=await _api.putJson('/api/user-sync/watchlist',{'assetKeys':assetKeys});final list=json['watchlist'] as List<dynamic>? ?? const <dynamic>[];return list.map((e)=>e.toString()).toList(growable:false);}
   Future<SyncNotificationPreferences> setNotificationPreferences(SyncNotificationPreferences value)async{final json=await _api.putJson('/api/user-sync/notification-preferences',value.toJson());return SyncNotificationPreferences.fromJson((json['notificationPreferences'] as Map<String,dynamic>?)??<String,dynamic>{});}
   Future<void> markNotificationsRead(List<String> eventIds)async{await _api.postJson('/api/user-sync/notification-reads',{'eventIds':eventIds});}
 }
