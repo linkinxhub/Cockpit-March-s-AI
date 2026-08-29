@@ -9,10 +9,11 @@ class UserSyncCapabilities{
 }
 
 class SyncNotificationPreferences{
-  const SyncNotificationPreferences({required this.minimumSeverity,required this.watchedOnly,required this.pushEnabled,this.quietHoursStart,this.quietHoursEnd});
-  final String minimumSeverity;final bool watchedOnly,pushEnabled;final String? quietHoursStart,quietHoursEnd;
-  factory SyncNotificationPreferences.fromJson(Map<String,dynamic> json)=>SyncNotificationPreferences(minimumSeverity:json['minimumSeverity']?.toString()??'IMPORTANT',watchedOnly:json['watchedOnly']!=false,pushEnabled:json['pushEnabled']==true,quietHoursStart:json['quietHoursStart']?.toString(),quietHoursEnd:json['quietHoursEnd']?.toString());
-  Map<String,dynamic> toJson()=>{'minimumSeverity':minimumSeverity,'watchedOnly':watchedOnly,'pushEnabled':pushEnabled,'quietHoursStart':quietHoursStart,'quietHoursEnd':quietHoursEnd};
+  const SyncNotificationPreferences({required this.minimumSeverity,required this.watchedOnly,required this.pushEnabled,this.quietHoursStart,this.quietHoursEnd,this.timeZone,this.utcOffsetMinutes});
+  final String minimumSeverity;final bool watchedOnly,pushEnabled;final String? quietHoursStart,quietHoursEnd,timeZone;final int? utcOffsetMinutes;
+  factory SyncNotificationPreferences.fromJson(Map<String,dynamic> json)=>SyncNotificationPreferences(minimumSeverity:json['minimumSeverity']?.toString()??'IMPORTANT',watchedOnly:json['watchedOnly']!=false,pushEnabled:json['pushEnabled']==true,quietHoursStart:json['quietHoursStart']?.toString(),quietHoursEnd:json['quietHoursEnd']?.toString(),timeZone:json['timeZone']?.toString(),utcOffsetMinutes:(json['utcOffsetMinutes'] as num?)?.toInt());
+  SyncNotificationPreferences copyWith({String? minimumSeverity,bool? watchedOnly,bool? pushEnabled,String? quietHoursStart,String? quietHoursEnd,String? timeZone,int? utcOffsetMinutes,bool clearQuietStart=false,bool clearQuietEnd=false})=>SyncNotificationPreferences(minimumSeverity:minimumSeverity??this.minimumSeverity,watchedOnly:watchedOnly??this.watchedOnly,pushEnabled:pushEnabled??this.pushEnabled,quietHoursStart:clearQuietStart?null:quietHoursStart??this.quietHoursStart,quietHoursEnd:clearQuietEnd?null:quietHoursEnd??this.quietHoursEnd,timeZone:timeZone??this.timeZone,utcOffsetMinutes:utcOffsetMinutes??this.utcOffsetMinutes);
+  Map<String,dynamic> toJson()=>{'minimumSeverity':minimumSeverity,'watchedOnly':watchedOnly,'pushEnabled':pushEnabled,'quietHoursStart':quietHoursStart,'quietHoursEnd':quietHoursEnd,'timeZone':timeZone,'utcOffsetMinutes':DateTime.now().timeZoneOffset.inMinutes};
 }
 
 class UserSyncSnapshot{
