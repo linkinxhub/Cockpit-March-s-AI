@@ -1,0 +1,3 @@
+import{getSharedUserIdentity}from'@/lib/user-identity';
+import{getUserSyncStore,userSyncStoreConfigured}from'@/lib/user-sync-store';
+export async function GET(){const user=await getSharedUserIdentity();if(!user)return Response.json({error:'authentication_required'},{status:401});if(!userSyncStoreConfigured())return Response.json({error:'storage_not_configured',configured:false},{status:503});try{const snapshot=await getUserSyncStore().getSnapshot(user.id);return Response.json({user:{id:user.id,displayName:user.displayName},snapshot,configured:true},{headers:{'Cache-Control':'private, no-store'}})}catch{return Response.json({error:'storage_unavailable'},{status:503})}}
