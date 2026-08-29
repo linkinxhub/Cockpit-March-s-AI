@@ -1,7 +1,18 @@
-import{getSharedUserIdentity}from'@/lib/user-identity';
 import{getUserSyncHealth}from'@/lib/user-sync-health';
 
 export async function GET(){
- const user=await getSharedUserIdentity();if(!user)return Response.json({error:'authentication_required'},{status:401});
- try{const health=await getUserSyncHealth();return Response.json(health,{status:health.configured&&health.connected?200:503,headers:{'Cache-Control':'private, no-store'}});}catch{return Response.json({configured:true,connected:false,error:'storage_unavailable'},{status:503,headers:{'Cache-Control':'private, no-store'}});}
+ try{
+  const health=await getUserSyncHealth();
+  const body={
+   configured:health.configured,
+   connected:health.connected,
+   healthy:health.healthy,
+   missingTables:health.missingTables,
+   notificationDeviceTable:health.notificationDeviceTable,
+   notificationTimezoneColumns:health.notificationTimezoneColumns,
+  };
+  return Response.json(body,{status:health.configured&&health.connected?200:503,headers:{'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});
+ }catch{
+  return Response.json({configured:true,connected:false,healthy:false,error:'storage_unavailable'},{status:503,headers:{'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});
+ }
 }
