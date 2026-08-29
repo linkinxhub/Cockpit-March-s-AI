@@ -392,6 +392,7 @@ export default function Home() {
     [chart, setChart] = useState<ChartPoint[]>([]),
     [timeframe, setTimeframe] = useState<Timeframe>("1d"),
     [chartLoading, setChartLoading] = useState(true),
+    [historyError, setHistoryError] = useState(""),
     [timeframeComparisons, setTimeframeComparisons] = useState<
       TimeframeComparison[]
     >([]),
@@ -525,11 +526,16 @@ export default function Home() {
   useEffect(() => {
     const controller = new AbortController();
     setChartLoading(true);
+    setHistoryError("");
     fetch(
       `/api/history?symbol=${active.key}&period=${timeframe}&refresh=${analysisRevision}`,
       { cache: "no-store", signal: controller.signal },
     )
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(async (r) => {
+        if (r.ok) return r.json();
+        const payload = await r.json().catch(() => null);
+        throw new Error(payload?.error || `Historique indisponible (${r.status})`);
+      })
       .then((d) => {
         let ema = 0,
           a = 2 / 21;
@@ -547,7 +553,10 @@ export default function Home() {
           );
       })
       .catch((e) => {
-        if (e?.name !== "AbortError") setChart([]);
+        if (e?.name !== "AbortError") {
+          setChart([]);
+          setHistoryError(e instanceof Error ? e.message : "Historique indisponible");
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) setChartLoading(false);
@@ -2811,7 +2820,15 @@ export default function Home() {
                 </article>
               ))}
             </div>
-            {technicalStudy ? (
+            {chartLoading ? (
+              <div className="indicatorEmpty indicatorLoading" role="status">Chargement de l’historique technique…</div>
+            ) : historyError ? (
+              <div className="indicatorEmpty indicatorError" role="alert">
+                <b>Les données techniques ne sont momentanément pas disponibles.</b>
+                <span>{historyError}</span>
+                <button type="button" onClick={() => setAnalysisRevision((revision) => revision + 1)}>Réessayer le chargement</button>
+              </div>
+            ) : technicalStudy ? (
               <div className="ichimokuFocus">
                 <div className="ichimokuTitle"><div><Activity/><span><p>ICHIMOKU MIS EN ÉVIDENCE</p><h2>La preuve visuelle du marché actuel</h2></span></div><strong className={technicalStudy.bias === "HAUSSIER" ? "buy" : technicalStudy.bias === "BAISSIER" ? "sell" : "wait"}>{technicalStudy.bias}</strong></div>
                 <div className="ichimokuLayout">
@@ -2828,7 +2845,13 @@ export default function Home() {
                 </section>
                 <footer>Lecture éducative, non prédictive. Les gaps, horaires de marché et annonces peuvent invalider rapidement un signal.</footer>
               </div>
-            ) : <div className="indicatorEmpty">Au moins 52 observations valides sont nécessaires pour afficher Ichimoku sans inventer de valeurs.</div>}
+            ) : <div className="indicatorEmpty indicatorInsufficient">
+              <b>Historique trop court pour Ichimoku</b>
+              <span>Au moins 52 observations valides sont nécessaires. Choisissez une période compatible pour afficher le graphique sans inventer de valeurs.</span>
+              <div className="compatiblePeriods">
+                {timeframes.filter(([period]) => ["1h","1d","1w","1mo","6mo","1y"].includes(period)).map(([period,label]) => <button type="button" key={period} onClick={() => selectTimeframe(period)}>{label}</button>)}
+              </div>
+            </div>}
           </section>
         )}
 
