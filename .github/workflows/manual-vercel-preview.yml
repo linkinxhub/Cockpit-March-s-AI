@@ -1,0 +1,79 @@
+name: Manual Vercel Preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY_PREVIEW to confirm a Vercel preview deployment'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-vercel-preview
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VERCEL_ORG_ID: team_EubY4MykE1gNJ4vdUlfL7KaC
+      VERCEL_PROJECT_ID: prj_geoT6Sz3Yb3LxIcRY2hn1t8iHBcf
+    steps:
+      - name: Confirm explicit preview request
+        run: |
+          test "${{ inputs.confirm }}" = "DEPLOY_PREVIEW" || {
+            echo "Preview not confirmed. Type DEPLOY_PREVIEW when dispatching this workflow."
+            exit 1
+          }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/flutter-mobile-sync
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Require Vercel token
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          test -n "$VERCEL_TOKEN" || {
+            echo "Missing GitHub Actions secret VERCEL_TOKEN."
+            exit 1
+          }
+
+      - name: Install exact dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify contracts before spending a preview
+        run: node --test tests/sync-contract.test.mjs tests/notification-contract.test.mjs tests/migration-contract.test.mjs tests/user-sync-smoke-contract.test.mjs tests/main-watchlist-contract.test.mjs tests/decision-journal-contract.test.mjs tests/ichimoku-chart-contract.test.mjs tests/workspace-contract.test.mjs
+
+      - name: Pull Vercel preview settings
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel@latest pull --yes --environment=preview --token="$VERCEL_TOKEN"
+
+      - name: Build outside Vercel infrastructure
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel@latest build --token="$VERCEL_TOKEN"
+
+      - name: Deploy prebuilt preview
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          URL=$(npx vercel@latest deploy --prebuilt --archive=tgz --token="$VERCEL_TOKEN")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Preview: $URL"
+
+      - name: Summary
+        run: |
+          echo "### Manual Vercel preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.deploy.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
