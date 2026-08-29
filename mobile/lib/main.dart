@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'core/api/api_client.dart';
 import 'features/markets/data/market_repository.dart';
+import 'features/indicators/data/indicator_repository.dart';
 
 const apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:3000');
 
@@ -28,13 +29,16 @@ class MobileShell extends StatefulWidget {
 
 class _MobileShellState extends State<MobileShell> {
   late final MarketRepository repository;
+  late final IndicatorRepository indicatorRepository;
   late Future<List<MarketRow>> future;
   int index = 0;
 
   @override
   void initState() {
     super.initState();
-    repository = MarketRepository(ApiClient(baseUrl: apiBaseUrl));
+    final api=ApiClient(baseUrl: apiBaseUrl);
+    repository = MarketRepository(api);
+    indicatorRepository = IndicatorRepository(api);
     future = repository.fetchScanner();
   }
 
@@ -61,7 +65,7 @@ class _MobileShellState extends State<MobileShell> {
           return switch (index) {
             0 => CockpitView(rows: rows, onRefresh: refresh),
             1 => MarketsView(rows: rows, onRefresh: refresh),
-            2 => IndicatorsView(rows: rows),
+            2 => IndicatorsView(rows: rows, repository: indicatorRepository),
             _ => SignalsView(rows: rows),
           };
         },
@@ -123,24 +127,47 @@ class MarketsView extends StatelessWidget {
       );
 }
 
-class IndicatorsView extends StatelessWidget {
-  const IndicatorsView({super.key, required this.rows});
+class IndicatorsView extends StatefulWidget {
+  const IndicatorsView({super.key, required this.rows, required this.repository});
   final List<MarketRow> rows;
+  final IndicatorRepository repository;
   @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) return const Center(child: Text('Aucun actif disponible'));
-    final r = rows.first;
-    final emaDecision = r.ema20 == null || r.ema50 == null ? 'INDISPONIBLE' : (r.ema20! > r.ema50! ? 'ACHETER' : 'VENDRE');
-    final rsiDecision = r.rsi == null ? 'INDISPONIBLE' : r.rsi! <= 30 ? 'ACHETER' : r.rsi! >= 70 ? 'VENDRE' : 'ATTENDRE';
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      Text('Centre des indicateurs', style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 6),
-      Text('${r.symbol} · lecture issue du même scanner Web'),
-      const SizedBox(height: 16),
-      const _IndicatorCard(name: 'Ichimoku Kinko Hyo', value: 'API dédiée à synchroniser', decision: 'BIENTÔT', highlighted: true),
-      _IndicatorCard(name: 'EMA 20 / EMA 50', value: '${_fmt(r.ema20)} / ${_fmt(r.ema50)}', decision: emaDecision),
-      _IndicatorCard(name: 'RSI 14', value: _fmt(r.rsi), decision: rsiDecision),
-      _IndicatorCard(name: 'Support / Résistance', value: '${_fmt(r.support)} / ${_fmt(r.resistance)}', decision: 'ATTENDRE'),
+  State<IndicatorsView> createState()=>_IndicatorsViewState();
+}
+
+class _IndicatorsViewState extends State<IndicatorsView>{
+  String? symbol;
+  String period='1d';
+  Future<IndicatorCenter>? center;
+  static const periods=['15m','1h','4h','1d','1w','1mo','6mo','1y'];
+
+  @override
+  void didChangeDependencies(){super.didChangeDependencies();if(widget.rows.isNotEmpty&&symbol==null){symbol=widget.rows.first.key;center=widget.repository.fetch(symbol:symbol!,period:period);}}
+
+  void load(){if(symbol==null)return;setState(()=>center=widget.repository.fetch(symbol:symbol!,period:period));}
+
+  @override
+  Widget build(BuildContext context){
+    if(widget.rows.isEmpty)return const Center(child:Text('Aucun actif disponible'));
+    return ListView(padding:const EdgeInsets.all(16),children:[
+      Text('Centre des indicateurs',style:Theme.of(context).textTheme.headlineSmall),
+      const SizedBox(height:8),
+      Row(children:[
+        Expanded(child:DropdownButtonFormField<String>(value:symbol,items:widget.rows.map((r)=>DropdownMenuItem(value:r.key,child:Text(r.symbol))).toList(),onChanged:(v){symbol=v;load();},decoration:const InputDecoration(labelText:'Actif'))),
+        const SizedBox(width:10),
+        SizedBox(width:110,child:DropdownButtonFormField<String>(value:period,items:periods.map((p)=>DropdownMenuItem(value:p,child:Text(p))).toList(),onChanged:(v){if(v!=null){period=v;load();}},decoration:const InputDecoration(labelText:'Période'))),
+      ]),
+      const SizedBox(height:16),
+      FutureBuilder<IndicatorCenter>(future:center,builder:(context,snapshot){
+        if(snapshot.connectionState==ConnectionState.waiting)return const Padding(padding:EdgeInsets.all(24),child:Center(child:CircularProgressIndicator()));
+        if(snapshot.hasError)return Card(child:Padding(padding:const EdgeInsets.all(16),child:Text('Indicateurs indisponibles : ${snapshot.error}')));
+        final data=snapshot.data;if(data==null)return const SizedBox.shrink();
+        return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Card(child:ListTile(title:const Text('Consensus technique'),subtitle:Text('${data.symbol} · ${data.period}'),trailing:Text(data.consensus,style:const TextStyle(fontWeight:FontWeight.bold)))),
+          const SizedBox(height:8),
+          ...data.items.map((item)=>_IndicatorCard(name:item.name,value:'${item.value}\n${item.reading}',decision:item.decision,highlighted:item.name.contains('Ichimoku'),explanation:item.explanation)),
+        ]);
+      }),
     ]);
   }
 }
@@ -180,15 +207,16 @@ class _MarketTile extends StatelessWidget {
 }
 
 class _IndicatorCard extends StatelessWidget {
-  const _IndicatorCard({required this.name, required this.value, required this.decision, this.highlighted = false});
-  final String name, value, decision;
+  const _IndicatorCard({required this.name, required this.value, required this.decision, this.highlighted = false,this.explanation=''});
+  final String name, value, decision, explanation;
   final bool highlighted;
   @override
   Widget build(BuildContext context) => Card(
         child: ListTile(
           leading: Icon(highlighted ? Icons.auto_awesome : Icons.analytics_outlined),
           title: Text(name, style: highlighted ? const TextStyle(fontWeight: FontWeight.bold) : null),
-          subtitle: Text(value),
+          subtitle: Text(explanation.isEmpty?value:'$value\n$explanation'),
+          isThreeLine: explanation.isNotEmpty,
           trailing: Text(decision),
         ),
       );
