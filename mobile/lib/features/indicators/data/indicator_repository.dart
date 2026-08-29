@@ -26,7 +26,7 @@ class IndicatorCenter {
     symbol:json['symbol']?.toString()??'—',
     period:json['period']?.toString()??'1d',
     consensus:json['consensus']?.toString()??'ATTENDRE',
-    items:(json['items'] as List<dynamic>???const[]).whereType<Map<String,dynamic>>().map(IndicatorItem.fromJson).toList(growable:false),
+    items:(json['items'] as List<dynamic>? ?? const[]).whereType<Map<String,dynamic>>().map(IndicatorItem.fromJson).toList(growable:false),
   );
 }
 
