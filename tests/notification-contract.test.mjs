@@ -7,6 +7,11 @@ const dispatch=fs.readFileSync('lib/push-dispatch.ts','utf8');
 const deviceRoute=fs.readFileSync('app/api/user-sync/notification-devices/route.ts','utf8');
 const personalizedRoute=fs.readFileSync('app/api/notifications/personalized/route.ts','utf8');
 const previewRoute=fs.readFileSync('app/api/notifications/dispatch-preview/route.ts','utf8');
+const publicKeyRoute=fs.readFileSync('app/api/notifications/web-push-public-key/route.ts','utf8');
+const webNotifications=fs.readFileSync('app/notifications/page.tsx','utf8');
+const serviceWorker=fs.readFileSync('public/push-sw.js','utf8');
+const flutterUserSync=fs.readFileSync('mobile/lib/features/sync/data/user_sync_repository.dart','utf8');
+const flutterPreferences=fs.readFileSync('mobile/lib/features/news/presentation/notification_preferences_view.dart','utf8');
 const schema=fs.readFileSync('db/schema.ts','utf8');
 const migration=fs.readFileSync('db/migrations/0002_notification_devices.sql','utf8');
 const manifest=fs.readFileSync('app/api/sync/manifest/route.ts','utf8');
@@ -28,6 +33,7 @@ test('device registry is durable and ownership protected',()=>{
  assert.match(deviceRoute,/web_push_subscription_required/);
  assert.match(deviceRoute,/device_token_required/);
  assert.doesNotMatch(deviceRoute,/PRIVATE_KEY|CLIENT_EMAIL/);
+ assert.doesNotMatch(deviceRoute,/token:d\.token|endpoint:d\.endpoint/);
 });
 
 test('push planning requires registered targets and configured providers',()=>{
@@ -43,6 +49,26 @@ test('personalized endpoint uses durable user snapshot',()=>{
  assert.match(personalizedRoute,/getSnapshot/);
  assert.match(personalizedRoute,/alertEligibility/);
  assert.match(personalizedRoute,/private, no-store/);
+});
+
+test('web push browser registration is opt-in and server-backed',()=>{
+ assert.match(publicKeyRoute,/WEB_PUSH_PUBLIC_KEY/);
+ assert.doesNotMatch(publicKeyRoute,/WEB_PUSH_PRIVATE_KEY/);
+ assert.match(webNotifications,/Notification\.requestPermission/);
+ assert.match(webNotifications,/pushManager\.subscribe/);
+ assert.match(webNotifications,/\/api\/user-sync\/notification-devices/);
+ assert.match(webNotifications,/crypto\.subtle\.digest/);
+ assert.doesNotMatch(webNotifications,/localStorage|sessionStorage/);
+ assert.match(serviceWorker,/showNotification/);
+ assert.match(serviceWorker,/notificationclick/);
+});
+
+test('flutter can inspect and revoke registered push devices',()=>{
+ assert.match(flutterUserSync,/notificationDevices/);
+ assert.match(flutterUserSync,/registerNotificationDevice/);
+ assert.match(flutterUserSync,/removeNotificationDevice/);
+ assert.match(flutterPreferences,/Appareils push enregistrés/);
+ assert.match(flutterPreferences,/removeNotificationDevice/);
 });
 
 test('manifest publishes notification contract v2',()=>{
