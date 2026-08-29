@@ -65,6 +65,7 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
+  Scatter,
   Tooltip,
   XAxis,
   YAxis,
@@ -427,7 +428,31 @@ export default function Home() {
     try {
       const response = await fetch(`/api/scanner?refresh=${Date.now()}`, {
         cache: "no-store",
-      });
+  });
+
+type IchimokuSignalPayload = {
+  action?: "ACHAT" | "VENTE" | "SORTIE";
+  price?: number;
+  reasons?: string[];
+  outcome?: number | null;
+};
+
+function HistoricalMarker({ cx = 0, cy = 0, payload }: { cx?:number; cy?:number; payload?:IchimokuSignalPayload }) {
+  const action = payload?.action ?? "SORTIE",
+    color = action === "ACHAT" ? "#2edb99" : action === "VENTE" ? "#ff6972" : "#f3ad22",
+    label = action === "ACHAT" ? "A" : action === "VENTE" ? "V" : "S";
+  return <g aria-label={action}><circle cx={cx} cy={cy} r="9" fill="#07131b" stroke={color} strokeWidth="2"/><text x={cx} y={cy + 3} textAnchor="middle" fill={color} fontSize="8" fontWeight="800">{label}</text></g>;
+}
+
+function IchimokuTooltip({ active, payload, label, locale }: { active?:boolean; payload?:Array<{ name?:string; value?:unknown; color?:string; payload?:IchimokuSignalPayload }>; label?:number; locale:string }) {
+  if (!active || !payload?.length) return null;
+  const signal = payload.find((item) => item.payload?.action)?.payload;
+  return <div className="ichimokuTooltip">
+    <b>{label ? new Date(Number(label)).toLocaleString(locale) : "Ichimoku"}</b>
+    {signal?.action && <section className={signal.action.toLowerCase()}><strong>{signal.action === "ACHAT" ? "ENTRÉE ACHAT" : signal.action === "VENTE" ? "ENTRÉE VENTE" : "SORTIE"}</strong><span>Prix · {number(signal.price ?? null,5)}</span>{signal.reasons?.map((reason,index) => <small key={index}>✓ {reason}</small>)}{signal.outcome !== null && signal.outcome !== undefined && <em>Résultat théorique jusqu’à l’invalidation : {signal.outcome >= 0 ? "+" : ""}{signal.outcome.toFixed(2)} %</em>}</section>}
+    {!signal && payload.slice(0,5).map((item,index) => <span key={index} style={{color:item.color}}>{item.name} · {typeof item.value === "number" ? number(item.value,5) : "—"}</span>)}
+  </div>;
+}
       if (!response.ok) throw new Error("scan");
       const d = await response.json();
       if (request !== scanRequest.current) return;
@@ -1043,7 +1068,12 @@ export default function Home() {
         const tenkan = index >= 8 ? midpoint(index,9) : null,
           kijun = index >= 25 ? midpoint(index,26) : null,
           spanB = index >= 51 ? midpoint(index,52) : null;
-        return { ...point, tenkan, kijun, spanA:tenkan !== null && kijun !== null ? (tenkan + kijun) / 2 : null, spanB };
+        const spanA = tenkan !== null && kijun !== null ? (tenkan + kijun) / 2 : null,
+          cloudTop = Math.max(spanA ?? point.price, spanB ?? point.price), cloudBottom = Math.min(spanA ?? point.price, spanB ?? point.price),
+          chikouConfirmed = index >= 26 ? point.price > chart[index - 26].price : null,
+          bullish = point.price > cloudTop && tenkan !== null && kijun !== null && tenkan > kijun && spanA !== null && spanB !== null && spanA > spanB && chikouConfirmed === true,
+          bearish = point.price < cloudBottom && tenkan !== null && kijun !== null && tenkan < kijun && spanA !== null && spanB !== null && spanA < spanB && chikouConfirmed === false;
+        return { ...point, tenkan, kijun, spanA, spanB, regime:bullish ? "ACHAT" : bearish ? "VENTE" : "ATTENDRE" };
       }),
       latest = ichimokuData.at(-1)!, prices = chart.map((point) => point.price),
       cloudTop = Math.max(latest.spanA ?? latest.price, latest.spanB ?? latest.price),
@@ -1057,11 +1087,36 @@ export default function Home() {
       deviation = Math.sqrt(last20.reduce((sum,value) => sum + Math.pow(value - mean,2),0) / last20.length),
       bollingerUpper = mean + deviation * 2, bollingerLower = mean - deviation * 2,
       atrWindow = chart.slice(-14), atr = atrWindow.reduce((sum,point) => sum + ((point.high ?? point.price) - (point.low ?? point.price)),0) / atrWindow.length;
+    type HistoricalSignal = { t:number; price:number; action:"ACHAT"|"VENTE"|"SORTIE"; reasons:string[]; outcome:number|null; correct:boolean|null };
+    const rawSignals:Omit<HistoricalSignal,"outcome"|"correct">[] = [];
+    let previousRegime = "ATTENDRE", openAction:"ACHAT"|"VENTE"|null = null;
+    ichimokuData.forEach((point,index) => {
+      if (index < 52) return;
+      const previous = ichimokuData[index - 1], confirmed = point.regime !== "ATTENDRE" && point.regime === previous.regime;
+      if (confirmed && point.regime !== previousRegime) {
+        const action = point.regime as "ACHAT"|"VENTE";
+        rawSignals.push({ t:point.t, price:point.price, action, reasons:[`Cours ${action === "ACHAT" ? "au-dessus" : "sous"} du Kumo`, `Tenkan ${action === "ACHAT" ? "au-dessus" : "sous"} Kijun pendant 2 clôtures`, `Nuage futur ${action === "ACHAT" ? "haussier" : "baissier"}`, "Chikou confirmée face au cours de 26 périodes auparavant"] });
+        openAction = action; previousRegime = point.regime;
+      } else if (openAction && point.regime === "ATTENDRE" && previous.regime === "ATTENDRE") {
+        rawSignals.push({ t:point.t, price:point.price, action:"SORTIE", reasons:["Deux clôtures sans alignement complet Ichimoku", "La conservation de la position n’était plus confirmée par les quatre preuves"] });
+        openAction = null; previousRegime = "ATTENDRE";
+      }
+    });
+    const signals:HistoricalSignal[] = rawSignals.map((signal,index) => {
+      if (signal.action === "SORTIE") return { ...signal, outcome:null, correct:null };
+      const nextExit = rawSignals.slice(index + 1).find((candidate) => candidate.action === "SORTIE" || candidate.action !== signal.action);
+      if (!nextExit) return { ...signal, outcome:null, correct:null };
+      const signedReturn = ((nextExit.price - signal.price) / signal.price) * 100 * (signal.action === "ACHAT" ? 1 : -1);
+      return { ...signal, outcome:signedReturn, correct:signedReturn > 0 };
+    });
+    const evaluatedSignals = signals.filter((signal) => signal.outcome !== null), wins = evaluatedSignals.filter((signal) => signal.correct).length,
+      averageReturn = evaluatedSignals.length ? evaluatedSignals.reduce((sum,signal) => sum + (signal.outcome ?? 0),0) / evaluatedSignals.length : null;
     const shape = cloudWidth < .18 ? "nuage comprimé" : cloudWidth > 1.2 ? "nuage épais" : "nuage équilibré";
     return {
       data:ichimokuData.slice(-80), tenkan:latest.tenkan, kijun:latest.kijun, spanA:latest.spanA, spanB:latest.spanB,
       chikou:chart.at(-27)?.price ?? null, cloudPosition, cross, cloudDirection, cloudWidth, shape, macd,
-      bollingerUpper, bollingerLower, atr,
+      bollingerUpper, bollingerLower, atr, signals, evaluatedSignals:evaluatedSignals.length,
+      winRate:evaluatedSignals.length ? wins / evaluatedSignals.length * 100 : null, averageReturn,
       bias:cloudPosition === "au-dessus" && cross === "haussier" && cloudDirection === "haussier" ? "HAUSSIER" : cloudPosition === "en dessous" && cross === "baissier" && cloudDirection === "baissier" ? "BAISSIER" : "MIXTE",
     };
   }, [chart]);
@@ -2760,11 +2815,16 @@ export default function Home() {
                 <div className="ichimokuTitle"><div><Activity/><span><p>ICHIMOKU MIS EN ÉVIDENCE</p><h2>La preuve visuelle du marché actuel</h2></span></div><strong className={technicalStudy.bias === "HAUSSIER" ? "buy" : technicalStudy.bias === "BAISSIER" ? "sell" : "wait"}>{technicalStudy.bias}</strong></div>
                 <div className="ichimokuLayout">
                   <div className="ichimokuChart">
-                    <ResponsiveContainer width="100%" height={300}><ComposedChart data={technicalStudy.data}><CartesianGrid stroke="#1e3039" vertical={false}/><XAxis dataKey="t" tickFormatter={formatChartTime} minTickGap={40} tick={{fill:"#728690",fontSize:9}} axisLine={false}/><YAxis orientation="right" domain={["auto","auto"]} tick={{fill:"#82959f",fontSize:10}}/><Tooltip labelFormatter={(value) => new Date(Number(value)).toLocaleString(locale)} contentStyle={{background:"#08141d",border:"1px solid #29404e"}}/><Area type="monotone" dataKey="spanA" stroke="#2edb99" fill="#2edb9926" connectNulls name="Senkou A"/><Area type="monotone" dataKey="spanB" stroke="#ff6972" fill="#ff697218" connectNulls name="Senkou B"/><Line type="monotone" dataKey="price" stroke="#e8f2f5" dot={false} strokeWidth={2} name="Prix"/><Line type="monotone" dataKey="tenkan" stroke="#38a8ff" dot={false} strokeWidth={1.5} connectNulls name="Tenkan 9"/><Line type="monotone" dataKey="kijun" stroke="#f3ad22" dot={false} strokeWidth={1.5} connectNulls name="Kijun 26"/></ComposedChart></ResponsiveContainer>
+                    <ResponsiveContainer width="100%" height={340}><ComposedChart data={technicalStudy.data}><CartesianGrid stroke="#1e3039" vertical={false}/><XAxis dataKey="t" tickFormatter={formatChartTime} minTickGap={40} tick={{fill:"#728690",fontSize:9}} axisLine={false}/><YAxis orientation="right" domain={["auto","auto"]} tick={{fill:"#82959f",fontSize:10}}/><Tooltip content={(props) => <IchimokuTooltip {...props} locale={locale}/>}/><Area type="monotone" dataKey="spanA" stroke="#2edb99" fill="#2edb9926" connectNulls name="Senkou A"/><Area type="monotone" dataKey="spanB" stroke="#ff6972" fill="#ff697218" connectNulls name="Senkou B"/><Line type="monotone" dataKey="price" stroke="#e8f2f5" dot={false} strokeWidth={2} name="Prix"/><Line type="monotone" dataKey="tenkan" stroke="#38a8ff" dot={false} strokeWidth={1.5} connectNulls name="Tenkan 9"/><Line type="monotone" dataKey="kijun" stroke="#f3ad22" dot={false} strokeWidth={1.5} connectNulls name="Kijun 26"/><Scatter data={technicalStudy.signals.filter((signal) => signal.action === "ACHAT")} dataKey="price" shape={<HistoricalMarker/>} name="Entrée achat"/><Scatter data={technicalStudy.signals.filter((signal) => signal.action === "VENTE")} dataKey="price" shape={<HistoricalMarker/>} name="Entrée vente"/><Scatter data={technicalStudy.signals.filter((signal) => signal.action === "SORTIE")} dataKey="price" shape={<HistoricalMarker/>} name="Sortie"/></ComposedChart></ResponsiveContainer>
                     <div className="ichimokuLegend"><span className="priceLine">Prix</span><span className="tenkanLine">Tenkan 9</span><span className="kijunLine">Kijun 26</span><span className="spanALine">Senkou A</span><span className="spanBLine">Senkou B</span></div>
                   </div>
                   <div className="ichimokuExplanation"><h3>Pourquoi ce verdict ?</h3><p>Le prix est <b>{technicalStudy.cloudPosition} le nuage</b>. Le croisement Tenkan/Kijun est <b className={technicalStudy.cross === "haussier" ? "buy" : "sell"}>{technicalStudy.cross}</b> et le nuage projeté est <b className={technicalStudy.cloudDirection === "haussier" ? "buy" : "sell"}>{technicalStudy.cloudDirection}</b>.</p><p>La forme est un <b>{technicalStudy.shape}</b>, épais d’environ <b>{technicalStudy.cloudWidth.toFixed(2)} %</b> du cours. Un nuage épais forme une zone plus résistante ; un nuage comprimé augmente le risque de changement de régime.</p><div className="ichimokuFacts"><span>Tenkan-sen<b>{number(technicalStudy.tenkan,5)}</b><small>Équilibre rapide · 9 périodes</small></span><span>Kijun-sen<b>{number(technicalStudy.kijun,5)}</b><small>Équilibre de fond · 26 périodes</small></span><span>Senkou A / B<b>{number(technicalStudy.spanA,5)} / {number(technicalStudy.spanB,5)}</b><small>Limites du nuage projeté</small></span><span>Chikou théorique<b>{number(technicalStudy.chikou,5)}</b><small>Comparaison à 26 périodes</small></span></div><div className="ichimokuVerdict"><ShieldCheck/><p><b>Condition de validation :</b> {technicalStudy.bias === "HAUSSIER" ? "maintien du prix au-dessus du nuage et Tenkan au-dessus de Kijun." : technicalStudy.bias === "BAISSIER" ? "maintien du prix sous le nuage et Tenkan sous Kijun." : "attendre une sortie nette du nuage et un croisement cohérent."}</p></div></div>
                 </div>
+                <section className="ichimokuHistory">
+                  <div className="ichimokuHistoryHead"><div><p>RELECTURE HISTORIQUE</p><h3>Quand agir aurait été justifié — et pourquoi</h3></div><div className="historyStats"><span><b>{technicalStudy.evaluatedSignals}</b> signaux évalués</span><span><b>{technicalStudy.winRate === null ? "—" : `${technicalStudy.winRate.toFixed(0)} %`}</b> favorables</span><span><b>{technicalStudy.averageReturn === null ? "—" : `${technicalStudy.averageReturn >= 0 ? "+" : ""}${technicalStudy.averageReturn.toFixed(2)} %`}</b> rendement moyen théorique</span></div></div>
+                  {technicalStudy.signals.length ? <div className="ichimokuSignalList">{technicalStudy.signals.slice(-12).reverse().map((signal,index) => <article key={`${signal.t}-${signal.action}-${index}`} className={signal.action.toLowerCase()}><header><strong>{signal.action}</strong><span>{new Date(signal.t).toLocaleString(locale)}</span><b>{number(signal.price,5)}</b></header><p>{signal.reasons.join(" · ")}</p>{signal.outcome !== null && <footer>Résultat jusqu’à l’invalidation suivante : <b className={signal.correct ? "buy" : "sell"}>{signal.outcome >= 0 ? "+" : ""}{signal.outcome.toFixed(2)} %</b></footer>}</article>)}</div> : <div className="indicatorEmpty">Aucun alignement historique suffisamment strict sur la fenêtre visible. La bonne décision aurait été d’attendre.</div>}
+                  <footer className="historyMethod"><b>Méthode sans connaissance du futur :</b> un repère apparaît seulement après deux clôtures alignant prix/Kumo, Tenkan/Kijun, nuage futur et Chikou. Le résultat est mesuré ensuite jusqu’à l’invalidation ; il n’intervient jamais dans la création du signal. Calcul théorique hors spread, frais, slippage, liquidité et fiscalité. Un petit échantillon ne permet aucune conclusion statistique.</footer>
+                </section>
                 <footer>Lecture éducative, non prédictive. Les gaps, horaires de marché et annonces peuvent invalider rapidement un signal.</footer>
               </div>
             ) : <div className="indicatorEmpty">Au moins 52 observations valides sont nécessaires pour afficher Ichimoku sans inventer de valeurs.</div>}
