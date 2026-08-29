@@ -4,6 +4,7 @@ main>header{position:sticky;top:0;z-index:60;background:#07131ceF;backdrop-filte
 .panoramaToggle{width:100%;min-height:42px;padding:7px 24px;border:0;border-bottom:1px solid #1e303b;background:#091720;color:#dce7eb;display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;text-align:left}
 .panoramaToggle:hover{background:#0d2029}
 .panoramaToggle>span{display:flex;align-items:center;gap:9px;min-width:0}.panoramaToggle>span>svg{width:18px;color:#2edb99;flex:0 0 auto}.panoramaToggle b{font-size:12px}.panoramaToggle small{font-size:10px;color:#79909b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.panoramaToggle>svg{width:18px;color:#42dfa8;transition:transform .2s ease}
+.panoramaCountdown{margin-left:auto;border:1px solid #285548;border-radius:999px;background:#0d2a23;color:#5ae5b3;padding:4px 8px;font-size:9px;font-style:normal;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
 .panoramaContent{max-height:0;overflow:hidden;opacity:0;visibility:hidden;transition:max-height .32s ease,opacity .2s ease,visibility 0s linear .32s}.panoramaContent.open{max-height:650px;opacity:1;visibility:visible;transition:max-height .32s ease,opacity .22s ease}
 .panoramaContent .marketRibbon{position:relative;top:auto;z-index:1;box-shadow:none}
-@media(max-width:680px){main>header{height:58px}.forecastTopBanner{top:68px}.panoramaToggle{padding:8px 12px}.panoramaToggle small{display:none}}
+@media(max-width:680px){main>header{height:58px}.forecastTopBanner{top:68px}.panoramaToggle{padding:8px 12px}.panoramaToggle small{display:none}.panoramaCountdown{margin-left:0;padding:3px 6px}}

@@ -369,7 +369,10 @@ export default function Home() {
     [favoritesReady, setFavoritesReady] = useState(false);
   const [language, setLanguage] = useState<Lang>("fr");
   const [panoramaOpen, setPanoramaOpen] = useState(true);
+  const [panoramaCountdown, setPanoramaCountdown] = useState(10);
+  const panoramaRef = useRef<HTMLElement>(null);
   const [stickyEnabled, setStickyEnabled] = useState(true);
+  const [inlineForecastOpen, setInlineForecastOpen] = useState(false);
   const [assetSearchOpen, setAssetSearchOpen] = useState(false);
   const assetSearchRef = useRef<HTMLDivElement>(null);
   const locale = { fr: "fr-FR", en: "en-US", de: "de-DE", nl: "nl-NL" }[
@@ -399,6 +402,32 @@ export default function Home() {
       if (request === scanRequest.current) setScanning(false);
     }
   };
+  useEffect(() => {
+    if (!panoramaOpen) return;
+    setPanoramaCountdown(10);
+    const interval = window.setInterval(() => {
+      setPanoramaCountdown((seconds) => {
+        if (seconds <= 1) {
+          setPanoramaOpen(false);
+          return 10;
+        }
+        return seconds - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [panoramaOpen]);
+  useEffect(() => {
+    const collapseOutside = (event: PointerEvent) => {
+      if (
+        panoramaOpen &&
+        panoramaRef.current &&
+        !panoramaRef.current.contains(event.target as Node)
+      )
+        setPanoramaOpen(false);
+    };
+    document.addEventListener("pointerdown", collapseOutside);
+    return () => document.removeEventListener("pointerdown", collapseOutside);
+  }, [panoramaOpen]);
   useEffect(() => {
     scan();
   }, []);
@@ -1513,7 +1542,13 @@ export default function Home() {
             Voir le rapport complet <ExternalLink />
           </span>
         </button>
-        <section className="panoramaSection" aria-label="Panorama des marchés" data-guide="panorama">
+        <section
+          ref={panoramaRef}
+          className="panoramaSection"
+          aria-label="Panorama des marchés"
+          data-guide="panorama"
+          onPointerDownCapture={() => panoramaOpen && setPanoramaCountdown(10)}
+        >
           <button
             className="panoramaToggle"
             onClick={() => setPanoramaOpen((open) => !open)}
@@ -1524,6 +1559,11 @@ export default function Home() {
               <Gauge />
               <b>Panorama mondial et mood du marché</b>
               <small>{panoramaOpen ? "Réduire cette zone" : `${rows.length} actifs surveillés · afficher les catégories et le sentiment`}</small>
+              {panoramaOpen && (
+                <em className="panoramaCountdown" aria-live="polite">
+                  Repli automatique dans {panoramaCountdown} s
+                </em>
+              )}
             </span>
             {panoramaOpen ? <ChevronUp /> : <ChevronDown />}
           </button>
@@ -1702,9 +1742,10 @@ export default function Home() {
                   <button
                     className="chartForecastButton"
                     onClick={() => {
-                      setView("Prévisions");
-                      window.scrollTo({ top: 0, behavior: "smooth" });
+                      setInlineForecastOpen((open) => !open);
                     }}
+                    aria-expanded={inlineForecastOpen}
+                    aria-controls="inline-forecast-result"
                     aria-label={`Voir la prévision de ${active.symbol} sur ${timeframeLabel}`}
                   >
                     <TrendingUp />
@@ -1790,6 +1831,35 @@ export default function Home() {
                 ) : (
                   <div className="empty">
                     Historique indisponible pour cette période
+                  </div>
+                )}
+                {inlineForecastOpen && (
+                  <div id="inline-forecast-result" className="inlineForecastResult">
+                    <div className="inlineForecastHeading">
+                      <span>
+                        <small>PRÉVISION AFFICHÉE SUR CE GRAPHIQUE</small>
+                        <b>{active.symbol} · {timeframeLabel}</b>
+                      </span>
+                      <strong className={selectedForecast?.outlook === "HAUSSIER" ? "buy" : selectedForecast?.outlook === "BAISSIER" ? "sell" : "wait"}>
+                        {active.unavailable ? "INDISPONIBLE" : selectedForecast?.outlook || "ANALYSE…"}
+                      </strong>
+                    </div>
+                    <div className="inlineForecastGrid">
+                      <span><small>Fourchette projetée</small><b>{selectedForecast ? `${number(selectedForecast.low, 5)} — ${number(selectedForecast.high, 5)}` : "—"}</b></span>
+                      <span><small>Fiabilité indicative</small><b>{selectedForecast ? `${selectedForecast.reliability}%` : "—"}</b></span>
+                      <span><small>Scénario haussier</small><b>{selectedForecast ? `${selectedForecast.bull}%` : "—"}</b></span>
+                      <span><small>Scénario neutre / baissier</small><b>{selectedForecast ? `${selectedForecast.neutral}% / ${selectedForecast.bear}%` : "—"}</b></span>
+                    </div>
+                    <p>Projection éducative calculée avec la période active, la tendance, le momentum, la volatilité et les informations disponibles.</p>
+                    <button
+                      className="inlineForecastDetails"
+                      onClick={() => {
+                        setView("Prévisions");
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                    >
+                      Plus de détails dans le rapport complet <ExternalLink />
+                    </button>
                   </div>
                 )}
               </section>
