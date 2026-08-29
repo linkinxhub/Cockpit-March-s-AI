@@ -1348,7 +1348,6 @@ const words: Record<string, [string, string, string]> = {
   "Voir la prévision": ["View forecast", "Prognose anzeigen", "Prognose bekijken"],
   "Repli automatique dans": ["Auto-collapse in", "Automatisch einklappen in", "Automatisch inklappen over"],
   "PRÉVISION AFFICHÉE SUR CE GRAPHIQUE": ["FORECAST SHOWN ON THIS CHART", "AUF DIESEM CHART ANGEZEIGTE PROGNOSE", "PROGNOSE OP DEZE GRAFIEK"],
-  "Scénario haussier": ["Bullish scenario", "Bullisches Szenario", "Bullish scenario"],
   "Scénario neutre / baissier": ["Neutral / bearish scenario", "Neutrales / bärisches Szenario", "Neutraal / bearish scenario"],
   "Projection éducative calculée avec la période active, la tendance, le momentum, la volatilité et les informations disponibles.": ["Educational projection calculated from the active timeframe, trend, momentum, volatility and available information.", "Pädagogische Projektion auf Basis des aktiven Zeitraums, Trends, Momentums, der Volatilität und verfügbarer Informationen.", "Educatieve projectie berekend met de actieve periode, trend, momentum, volatiliteit en beschikbare informatie."],
   "Plus de détails dans le rapport complet": ["More details in the full report", "Weitere Details im vollständigen Bericht", "Meer details in het volledige rapport"],
