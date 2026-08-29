@@ -22,3 +22,4 @@ if(source.includes('cockpit-journal-v1'))throw new Error('Local journal storage 
 if(!source.includes('/api/user-sync/decision-notes'))throw new Error('Decision notes API not wired');
 fs.writeFileSync(path,source);
 console.log('Decision journal now uses durable Neon APIs.');
+// one-shot trigger marker
