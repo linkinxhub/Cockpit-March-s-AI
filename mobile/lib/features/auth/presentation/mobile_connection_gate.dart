@@ -18,9 +18,8 @@ class _MobileConnectionGateState extends State<MobileConnectionGate>{
 
   @override void initState(){super.initState();_restore();}
   Future<void> _restore()async{final saved=await session.readToken();if(saved!=null&&saved.isNotEmpty){final ok=await _validate(saved);if(ok){ApiClient.sessionBearerToken=saved;token=saved;}}if(mounted)setState(()=>loading=false);}
-  Future<bool> _validate(String value)async{try{final api=ApiClient(baseUrl:widget.apiBaseUrl,bearerToken:value),json=await api.getJson('/api/me');return json['authenticated']==true;}catch{return false;}}
+  Future<bool> _validate(String value)async{try{final api=ApiClient(baseUrl:widget.apiBaseUrl,bearerToken:value),json=await api.getJson('/api/me');return json['authenticated']==true;}catch(_){return false;}}
   Future<void> _connect()async{final value=controller.text.trim();if(value.isEmpty)return;setState((){connecting=true;error=null;});final ok=await _validate(value);if(!ok){setState((){connecting=false;error='Jeton invalide ou expiré.';});return;}await session.saveToken(value);ApiClient.sessionBearerToken=value;if(mounted)setState((){token=value;connecting=false;});}
-  Future<void> _disconnect()async{await session.clear();ApiClient.sessionBearerToken=null;if(mounted)setState((){token=null;controller.clear();});}
 
   @override Widget build(BuildContext context){
     if(loading)return const MaterialApp(home:Scaffold(body:Center(child:CircularProgressIndicator())));
