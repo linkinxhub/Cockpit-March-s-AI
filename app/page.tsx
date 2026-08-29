@@ -359,6 +359,30 @@ const moodFor = (rows: Row[], kind: string) => {
             };
 };
 
+type IchimokuSignalPayload = {
+  action?: "ACHAT" | "VENTE" | "SORTIE";
+  price?: number;
+  reasons?: string[];
+  outcome?: number | null;
+};
+
+function HistoricalMarker({ cx = 0, cy = 0, payload }: { cx?:number; cy?:number; payload?:IchimokuSignalPayload }) {
+  const action = payload?.action ?? "SORTIE",
+    color = action === "ACHAT" ? "#2edb99" : action === "VENTE" ? "#ff6972" : "#f3ad22",
+    label = action === "ACHAT" ? "A" : action === "VENTE" ? "V" : "S";
+  return <g aria-label={action}><circle cx={cx} cy={cy} r="9" fill="#07131b" stroke={color} strokeWidth="2"/><text x={cx} y={cy + 3} textAnchor="middle" fill={color} fontSize="8" fontWeight="800">{label}</text></g>;
+}
+
+function IchimokuTooltip({ active, payload, label, locale }: { active?:boolean; payload?:ReadonlyArray<{ name?:string | number; value?:unknown; color?:string; payload?:IchimokuSignalPayload }>; label?:number | string; locale:string }) {
+  if (!active || !payload?.length) return null;
+  const signal = payload.find((item) => item.payload?.action)?.payload;
+  return <div className="ichimokuTooltip">
+    <b>{label ? new Date(Number(label)).toLocaleString(locale) : "Ichimoku"}</b>
+    {signal?.action && <section className={signal.action.toLowerCase()}><strong>{signal.action === "ACHAT" ? "ENTRÉE ACHAT" : signal.action === "VENTE" ? "ENTRÉE VENTE" : "SORTIE"}</strong><span>Prix · {number(signal.price ?? null,5)}</span>{signal.reasons?.map((reason,index) => <small key={index}>✓ {reason}</small>)}{signal.outcome !== null && signal.outcome !== undefined && <em>Résultat théorique jusqu’à l’invalidation : {signal.outcome >= 0 ? "+" : ""}{signal.outcome.toFixed(2)} %</em>}</section>}
+    {!signal && payload.slice(0,5).map((item,index) => <span key={index} style={{color:item.color}}>{item.name} · {typeof item.value === "number" ? number(item.value,5) : "—"}</span>)}
+  </div>;
+}
+
 export default function Home() {
   const [rows, setRows] = useState<Row[]>(seed),
     [active, setActive] = useState<Row>(seed[0]),
@@ -430,29 +454,6 @@ export default function Home() {
         cache: "no-store",
   });
 
-type IchimokuSignalPayload = {
-  action?: "ACHAT" | "VENTE" | "SORTIE";
-  price?: number;
-  reasons?: string[];
-  outcome?: number | null;
-};
-
-function HistoricalMarker({ cx = 0, cy = 0, payload }: { cx?:number; cy?:number; payload?:IchimokuSignalPayload }) {
-  const action = payload?.action ?? "SORTIE",
-    color = action === "ACHAT" ? "#2edb99" : action === "VENTE" ? "#ff6972" : "#f3ad22",
-    label = action === "ACHAT" ? "A" : action === "VENTE" ? "V" : "S";
-  return <g aria-label={action}><circle cx={cx} cy={cy} r="9" fill="#07131b" stroke={color} strokeWidth="2"/><text x={cx} y={cy + 3} textAnchor="middle" fill={color} fontSize="8" fontWeight="800">{label}</text></g>;
-}
-
-function IchimokuTooltip({ active, payload, label, locale }: { active?:boolean; payload?:Array<{ name?:string; value?:unknown; color?:string; payload?:IchimokuSignalPayload }>; label?:number; locale:string }) {
-  if (!active || !payload?.length) return null;
-  const signal = payload.find((item) => item.payload?.action)?.payload;
-  return <div className="ichimokuTooltip">
-    <b>{label ? new Date(Number(label)).toLocaleString(locale) : "Ichimoku"}</b>
-    {signal?.action && <section className={signal.action.toLowerCase()}><strong>{signal.action === "ACHAT" ? "ENTRÉE ACHAT" : signal.action === "VENTE" ? "ENTRÉE VENTE" : "SORTIE"}</strong><span>Prix · {number(signal.price ?? null,5)}</span>{signal.reasons?.map((reason,index) => <small key={index}>✓ {reason}</small>)}{signal.outcome !== null && signal.outcome !== undefined && <em>Résultat théorique jusqu’à l’invalidation : {signal.outcome >= 0 ? "+" : ""}{signal.outcome.toFixed(2)} %</em>}</section>}
-    {!signal && payload.slice(0,5).map((item,index) => <span key={index} style={{color:item.color}}>{item.name} · {typeof item.value === "number" ? number(item.value,5) : "—"}</span>)}
-  </div>;
-}
       if (!response.ok) throw new Error("scan");
       const d = await response.json();
       if (request !== scanRequest.current) return;
