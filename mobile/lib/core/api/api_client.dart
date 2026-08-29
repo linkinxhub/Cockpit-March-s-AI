@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 
 class ApiClient {
+  static String? sessionBearerToken;
+
   ApiClient({required String baseUrl,String? bearerToken})
       : _dio = Dio(BaseOptions(
           baseUrl: baseUrl,
@@ -8,7 +10,7 @@ class ApiClient {
           receiveTimeout: const Duration(seconds: 15),
           headers: {
             'Accept': 'application/json',
-            if (bearerToken != null && bearerToken.isNotEmpty) 'Authorization': 'Bearer $bearerToken',
+            if ((bearerToken ?? sessionBearerToken)?.isNotEmpty == true) 'Authorization': 'Bearer ${bearerToken ?? sessionBearerToken}',
           },
         ));
 
