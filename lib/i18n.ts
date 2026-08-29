@@ -184,7 +184,6 @@ const words: Record<string, [string, string, string]> = {
   Indicateurs: ["Indicators", "Indikatoren", "Indicatoren"],
   "CENTRE DES INDICATEURS": ["INDICATOR CENTER", "INDIKATORENZENTRUM", "INDICATORCENTRUM"],
   "Décision technique par indicateur": ["Technical decision by indicator", "Technische Entscheidung je Indikator", "Technische beslissing per indicator"],
-  "Période active": ["Active timeframe", "Aktiver Zeitraum", "Actieve periode"],
   "Signal technique éducatif": ["Educational technical signal", "Technisches Lernsignal", "Educatief technisch signaal"],
   "Un indicateur isolé n’est pas un ordre. Vérifiez l’alignement, le risque et les actualités avant toute décision.": ["A single indicator is not an order. Check alignment, risk and news before any decision.", "Ein einzelner Indikator ist kein Auftrag. Prüfen Sie Ausrichtung, Risiko und Nachrichten vor jeder Entscheidung.", "Eén indicator is geen order. Controleer afstemming, risico en nieuws vóór elke beslissing."],
   Indicateur: ["Indicator", "Indikator", "Indicator"],
