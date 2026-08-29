@@ -14,9 +14,10 @@ test('business workspace is durable and server-backed',()=>{
   assert.match(api,/getSharedUserIdentity/);
   assert.match(api,/workspace/);
   assert.match(store,/user_workspace_state/);
-  assert.match(store,/profile_json/);
-  assert.match(store,/price_alerts_json/);
-  assert.match(store,/passports_json/);
+  assert.match(store,/select profile,price_alerts,passports,updated_at/);
+  assert.match(store,/profile=excluded\.profile/);
+  assert.match(store,/price_alerts=excluded\.price_alerts/);
+  assert.match(store,/passports=excluded\.passports/);
   assert.match(health,/user_workspace_state/);
   assert.match(runner,/CREATE TABLE IF NOT EXISTS user_workspace_state/);
   assert.match(migration,/CREATE TABLE IF NOT EXISTS user_workspace_state/);
@@ -37,9 +38,9 @@ test('ui-only preferences remain local while business state is synchronized',()=
 
 test('manifest publishes workspace contract v2.4',()=>{
   assert.match(manifest,/schemaVersion:'2\.4\.0'/);
-  assert.match(manifest,/workspace:'\/api\/user-sync\/workspace'/);
+  assert.match(manifest,/userWorkspace:'\/api\/user-sync\/workspace'/);
   assert.match(manifest,/0005_user_workspace_state\.sql/);
   assert.match(manifest,/traderProfile/);
   assert.match(manifest,/priceAlerts/);
-  assert.match(manifest,/passports/);
+  assert.match(manifest,/analysisPassports/);
 });
