@@ -1734,9 +1734,9 @@ export default function Home() {
               <section className="chart" id="chart-zone">
                 <div className="chartbar timeframeHeader">
                   <div>
-                    <span>Historique réel · EMA 20</span>
+                    <span>{inlineForecastOpen ? "Graphique prévisionnel multi-horizons" : "Historique réel · EMA 20"}</span>
                     <small>
-                      {timeframes.find(([key]) => key === timeframe)?.[1]}
+                      {inlineForecastOpen ? `${active.symbol} · période active ${timeframeLabel}` : timeframes.find(([key]) => key === timeframe)?.[1]}
                     </small>
                   </div>
                   <button
@@ -1749,7 +1749,7 @@ export default function Home() {
                     aria-label={`Voir la prévision de ${active.symbol} sur ${timeframeLabel}`}
                   >
                     <TrendingUp />
-                    <span>Voir la prévision</span>
+                    <span>{inlineForecastOpen ? "Voir l’historique" : "Voir la prévision"}</span>
                   </button>
                 </div>
                 <div
@@ -1768,7 +1768,41 @@ export default function Home() {
                     </button>
                   ))}
                 </div>
-                {chartLoading ? (
+                {inlineForecastOpen && selectedForecast && !active.unavailable ? (
+                  <div className="inlineForecastChart" id="inline-forecast-result">
+                    <ResponsiveContainer width="100%" height={315}>
+                      <ComposedChart data={forecastChartData} margin={{ top: 20, right: 24, left: 8, bottom: 4 }}>
+                        <defs>
+                          <linearGradient id="inlineForecastBand" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0" stopColor="#2edb99" stopOpacity=".32" />
+                            <stop offset="1" stopColor="#2edb99" stopOpacity=".04" />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="#1e303c" vertical={false} />
+                        <XAxis dataKey="period" tick={{ fill: "#8397a3", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis orientation="right" domain={["auto", "auto"]} tick={{ fill: "#8397a3", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                          formatter={(value: any, name: string | number | undefined) => [
+                            Array.isArray(value) ? value.map((v) => number(Number(v), 5)).join(" — ") : number(Number(value), 5),
+                            name === "range" ? "Fourchette projetée" : "Scénario central",
+                          ]}
+                          contentStyle={{ background: "#08141d", border: "1px solid #29404e", borderRadius: 8 }}
+                        />
+                        <Area type="monotone" dataKey="range" stroke="#2edb99" strokeOpacity=".5" fill="url(#inlineForecastBand)" connectNulls />
+                        <Line type="monotone" dataKey="center" stroke="#42e7ac" strokeWidth={3} dot={{ r: 4, fill: "#07131c", stroke: "#42e7ac", strokeWidth: 2 }} connectNulls />
+                        <ReferenceLine x={timeframeLabel} stroke="#ffb321" strokeDasharray="4 4" label={{ value: "Période active", fill: "#ffb321", fontSize: 9, position: "insideTopRight" }} />
+                        <ReferenceLine y={active.support ?? undefined} stroke="#ff6b73" strokeDasharray="5 5" />
+                        <ReferenceLine y={active.resistance ?? undefined} stroke="#f5b84b" strokeDasharray="5 5" />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                    <div className="inlineForecastSummary">
+                      <span><small>Orientation</small><b className={selectedForecast.outlook === "HAUSSIER" ? "buy" : selectedForecast.outlook === "BAISSIER" ? "sell" : "wait"}>{selectedForecast.outlook}</b></span>
+                      <span><small>Fourchette projetée</small><b>{number(selectedForecast.low, 5)} — {number(selectedForecast.high, 5)}</b></span>
+                      <span><small>Fiabilité indicative</small><b>{selectedForecast.reliability}%</b></span>
+                      <button onClick={() => { setView("Prévisions"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Rapport prévisionnel complet <ExternalLink /></button>
+                    </div>
+                  </div>
+                ) : chartLoading ? (
                   <div className="empty chartLoading">
                     <i />
                     Chargement de la période…
@@ -1831,35 +1865,6 @@ export default function Home() {
                 ) : (
                   <div className="empty">
                     Historique indisponible pour cette période
-                  </div>
-                )}
-                {inlineForecastOpen && (
-                  <div id="inline-forecast-result" className="inlineForecastResult">
-                    <div className="inlineForecastHeading">
-                      <span>
-                        <small>PRÉVISION AFFICHÉE SUR CE GRAPHIQUE</small>
-                        <b>{active.symbol} · {timeframeLabel}</b>
-                      </span>
-                      <strong className={selectedForecast?.outlook === "HAUSSIER" ? "buy" : selectedForecast?.outlook === "BAISSIER" ? "sell" : "wait"}>
-                        {active.unavailable ? "INDISPONIBLE" : selectedForecast?.outlook || "ANALYSE…"}
-                      </strong>
-                    </div>
-                    <div className="inlineForecastGrid">
-                      <span><small>Fourchette projetée</small><b>{selectedForecast ? `${number(selectedForecast.low, 5)} — ${number(selectedForecast.high, 5)}` : "—"}</b></span>
-                      <span><small>Fiabilité indicative</small><b>{selectedForecast ? `${selectedForecast.reliability}%` : "—"}</b></span>
-                      <span><small>Scénario haussier</small><b>{selectedForecast ? `${selectedForecast.bull}%` : "—"}</b></span>
-                      <span><small>Scénario neutre / baissier</small><b>{selectedForecast ? `${selectedForecast.neutral}% / ${selectedForecast.bear}%` : "—"}</b></span>
-                    </div>
-                    <p>Projection éducative calculée avec la période active, la tendance, le momentum, la volatilité et les informations disponibles.</p>
-                    <button
-                      className="inlineForecastDetails"
-                      onClick={() => {
-                        setView("Prévisions");
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      }}
-                    >
-                      Plus de détails dans le rapport complet <ExternalLink />
-                    </button>
                   </div>
                 )}
               </section>
