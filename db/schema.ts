@@ -1,36 +1,36 @@
-import{integer,primaryKey,sqliteTable,text}from'drizzle-orm/sqlite-core';
+import{bigint,boolean,pgTable,primaryKey,text}from'drizzle-orm/pg-core';
 
-export const userProfiles=sqliteTable('user_profiles',{
+export const userProfiles=pgTable('user_profiles',{
  id:text('id').primaryKey(),
  email:text('email').notNull(),
  displayName:text('display_name').notNull(),
- createdAt:integer('created_at').notNull(),
- updatedAt:integer('updated_at').notNull(),
+ createdAt:bigint('created_at',{mode:'number'}).notNull(),
+ updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
 });
 
-export const watchlistItems=sqliteTable('watchlist_items',{
+export const watchlistItems=pgTable('watchlist_items',{
  userId:text('user_id').notNull(),
  assetKey:text('asset_key').notNull(),
- createdAt:integer('created_at').notNull(),
-},{pk:t=>[primaryKey({columns:[t.userId,t.assetKey]})]});
+ createdAt:bigint('created_at',{mode:'number'}).notNull(),
+},t=>[primaryKey({columns:[t.userId,t.assetKey]})]);
 
-export const notificationPreferences=sqliteTable('notification_preferences',{
+export const notificationPreferences=pgTable('notification_preferences',{
  userId:text('user_id').primaryKey(),
  minimumSeverity:text('minimum_severity').notNull().default('IMPORTANT'),
- watchedOnly:integer('watched_only',{mode:'boolean'}).notNull().default(true),
- pushEnabled:integer('push_enabled',{mode:'boolean'}).notNull().default(false),
+ watchedOnly:boolean('watched_only').notNull().default(true),
+ pushEnabled:boolean('push_enabled').notNull().default(false),
  quietHoursStart:text('quiet_hours_start'),
  quietHoursEnd:text('quiet_hours_end'),
- updatedAt:integer('updated_at').notNull(),
+ updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
 });
 
-export const notificationReads=sqliteTable('notification_reads',{
+export const notificationReads=pgTable('notification_reads',{
  userId:text('user_id').notNull(),
  eventId:text('event_id').notNull(),
- readAt:integer('read_at').notNull(),
-},{pk:t=>[primaryKey({columns:[t.userId,t.eventId]})]});
+ readAt:bigint('read_at',{mode:'number'}).notNull(),
+},t=>[primaryKey({columns:[t.userId,t.eventId]})]);
 
-export const paperTrades=sqliteTable('paper_trades',{
+export const paperTrades=pgTable('paper_trades',{
  id:text('id').primaryKey(),
  userId:text('user_id').notNull(),
  assetKey:text('asset_key').notNull(),
@@ -38,7 +38,7 @@ export const paperTrades=sqliteTable('paper_trades',{
  quantity:text('quantity').notNull(),
  entryPrice:text('entry_price').notNull(),
  exitPrice:text('exit_price'),
- openedAt:integer('opened_at').notNull(),
- closedAt:integer('closed_at'),
+ openedAt:bigint('opened_at',{mode:'number'}).notNull(),
+ closedAt:bigint('closed_at',{mode:'number'}),
  note:text('note'),
 });
