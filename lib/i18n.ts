@@ -1364,7 +1364,6 @@ const words: Record<string, [string, string, string]> = {
   "Voir l’historique": ["View history", "Historie anzeigen", "Historiek bekijken"],
   "Graphique prévisionnel multi-horizons": ["Multi-horizon forecast chart", "Multi-Horizont-Prognosechart", "Multi-horizon prognosegrafiek"],
   "période active": ["active timeframe", "aktiver Zeitraum", "actieve periode"],
-  "Période active": ["Active timeframe", "Aktiver Zeitraum", "Actieve periode"],
   "Rapport prévisionnel complet": ["Full forecast report", "Vollständiger Prognosebericht", "Volledig prognoserapport"],
   "Repli automatique dans": ["Auto-collapse in", "Automatisch einklappen in", "Automatisch inklappen over"],
   "PRÉVISION AFFICHÉE SUR CE GRAPHIQUE": ["FORECAST SHOWN ON THIS CHART", "AUF DIESEM CHART ANGEZEIGTE PROGNOSE", "PROGNOSE OP DEZE GRAFIEK"],
