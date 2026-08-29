@@ -10,5 +10,12 @@ CREATE TABLE IF NOT EXISTS billing_subscriptions (
   updated_at bigint NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS billing_webhook_events (
+  event_id text PRIMARY KEY,
+  event_type text NOT NULL,
+  processed_at bigint NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_customer ON billing_subscriptions(stripe_customer_id);
 CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_subscription ON billing_subscriptions(stripe_subscription_id);
+CREATE INDEX IF NOT EXISTS idx_billing_webhook_events_processed ON billing_webhook_events(processed_at);
