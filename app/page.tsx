@@ -3929,8 +3929,7 @@ export default function Home() {
                 <div>
                   <h2>Mon profil de risque</h2>
                   <p>
-                    Ces valeurs restent enregistrées uniquement dans ce
-                    navigateur.
+                    Ces valeurs sont synchronisées avec votre compte Web et mobile via le stockage Neon sécurisé.
                   </p>
                 </div>
               </div>
