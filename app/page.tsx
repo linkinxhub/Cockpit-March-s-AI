@@ -641,7 +641,7 @@ export default function Home() {
       .then((payload) =>
         setJournal(
           Array.isArray(payload?.notes)
-            ? payload.notes.map((item) => ({
+            ? payload.notes.map((item: { id: unknown; text?: unknown; assetKey?: unknown; createdAt?: unknown }) => ({
                 id: String(item.id),
                 text: String(item.text || ""),
                 assetKey: item.assetKey == null ? null : String(item.assetKey),
