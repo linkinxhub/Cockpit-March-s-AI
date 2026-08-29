@@ -1,0 +1,27 @@
+name: Market Alert Dispatch
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: market-alert-dispatch
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require dispatch secret
+        env:
+          SECRET: ${{ secrets.NOTIFICATION_DISPATCH_SECRET }}
+        run: test -n "$SECRET"
+      - name: Dispatch recent personalized alerts
+        env:
+          SECRET: ${{ secrets.NOTIFICATION_DISPATCH_SECRET }}
+        run: |
+          curl --fail-with-body --retry 2 --max-time 120 \
+            -X POST 'https://cockpit-march-s-ai.vercel.app/api/notifications/dispatch' \
+            -H "Authorization: Bearer $SECRET" \
+            -H 'Content-Type: application/json' \
+            --data '{"windowMinutes":75}'
