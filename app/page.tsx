@@ -419,7 +419,8 @@ export default function Home() {
     }),
     [passports, setPassports] = useState<Passport[]>([]),
     [decisionEvents, setDecisionEvents] = useState<DecisionEvent[]>([]),
-    [storageReady, setStorageReady] = useState(false);
+    [storageReady, setStorageReady] = useState(false),
+    [workspaceReady, setWorkspaceReady] = useState(false);
   const decisionSnapshot = useRef<Record<string, string>>({});
   const [news, setNews] = useState<Record<string, News[]>>({}),
     [newsUpdated, setNewsUpdated] = useState(""),
@@ -656,14 +657,40 @@ export default function Home() {
     return () => controller.abort();
   }, []);
   useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/user-sync/workspace", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) return { workspace: null };
+        if (!response.ok) throw new Error("workspace_load_failed");
+        return response.json();
+      })
+      .then((payload) => {
+        const workspace = payload?.workspace;
+        if (!workspace) return;
+        if (workspace.profile) setProfile(workspace.profile);
+        if (Array.isArray(workspace.priceAlerts)) setAlerts(workspace.priceAlerts);
+        if (Array.isArray(workspace.passports)) setPassports(workspace.passports);
+      })
+      .catch(() => {})
+      .finally(() => { if (!controller.signal.aborted) setWorkspaceReady(true); });
+    return () => controller.abort();
+  }, []);
+  useEffect(() => {
+    if (!workspaceReady) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      fetch("/api/user-sync/workspace", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, priceAlerts: alerts, passports }),
+        signal: controller.signal,
+      }).catch(() => {});
+    }, 300);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [profile, alerts, passports, workspaceReady]);
+  useEffect(() => {
     try {
-      const a = localStorage.getItem("cockpit-alerts-v1"),
-        p = localStorage.getItem("cockpit-profile-v1"),
-        d = localStorage.getItem("cockpit-passports-v1"),
-        e = localStorage.getItem("cockpit-decision-events-v1");
-      if (a) setAlerts(JSON.parse(a));
-      if (p) setProfile(JSON.parse(p));
-      if (d) setPassports(JSON.parse(d));
+      const e = localStorage.getItem("cockpit-decision-events-v1");
       if (e) setDecisionEvents(JSON.parse(e));
     } catch {
     } finally {
@@ -672,11 +699,8 @@ export default function Home() {
   }, []);
   useEffect(() => {
     if (!storageReady) return;
-    localStorage.setItem("cockpit-alerts-v1", JSON.stringify(alerts));
-    localStorage.setItem("cockpit-profile-v1", JSON.stringify(profile));
-    localStorage.setItem("cockpit-passports-v1", JSON.stringify(passports));
     localStorage.setItem("cockpit-decision-events-v1", JSON.stringify(decisionEvents));
-  }, [alerts, profile, passports, decisionEvents, storageReady]);
+  }, [decisionEvents, storageReady]);
   useEffect(() => {
     const saved = localStorage.getItem("cockpit-language") as Lang | null;
     if (saved && ["fr", "en", "de", "nl"].includes(saved)) setLanguage(saved);
