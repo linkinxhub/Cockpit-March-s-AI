@@ -612,18 +612,24 @@ export default function Home() {
     return () => controller.abort();
   }, [active.key, timeframe, analysisRevision]);
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("cockpit-favorites");
-      setFavorites(saved ? JSON.parse(saved) : []);
-    } catch {
-    } finally {
-      setFavoritesReady(true);
-    }
+    const controller = new AbortController();
+    fetch("/api/user-sync/snapshot", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 401) return { watchlist: [] };
+        if (!response.ok) throw new Error("watchlist_load_failed");
+        return response.json();
+      })
+      .then((snapshot) =>
+        setFavorites(Array.isArray(snapshot?.watchlist) ? snapshot.watchlist : []),
+      )
+      .catch((error) => {
+        if (error?.name !== "AbortError") setFavorites([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setFavoritesReady(true);
+      });
+    return () => controller.abort();
   }, []);
-  useEffect(() => {
-    if (favoritesReady)
-      localStorage.setItem("cockpit-favorites", JSON.stringify(favorites));
-  }, [favorites, favoritesReady]);
   useEffect(() => {
     try {
       const a = localStorage.getItem("cockpit-alerts-v1"),
@@ -781,10 +787,26 @@ export default function Home() {
       .querySelectorAll(".analysisGrid article")
       [index]?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
-  const toggleFavorite = (key: string) =>
-    setFavorites((f) =>
-      f.includes(key) ? f.filter((x) => x !== key) : [...f, key],
-    );
+  const toggleFavorite = async (key: string) => {
+    if (!favoritesReady) return;
+    const previous = favorites;
+    const next = previous.includes(key)
+      ? previous.filter((item) => item !== key)
+      : [...previous, key];
+    setFavorites(next);
+    try {
+      const response = await fetch("/api/user-sync/watchlist", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetKeys: next }),
+      });
+      if (!response.ok) throw new Error("watchlist_save_failed");
+      const payload = await response.json();
+      setFavorites(Array.isArray(payload?.watchlist) ? payload.watchlist : next);
+    } catch {
+      setFavorites(previous);
+    }
+  };
   const savePassport = () => {
     const stop =
         active.decision === "ACHETER"
@@ -2636,7 +2658,7 @@ export default function Home() {
                 <p>MA LISTE DE SURVEILLANCE</p>
                 <h1>Favoris et opportunités suivies</h1>
                 <span>
-                  Vos favoris sont conservés sur cet appareil. Cliquez sur
+                  Vos favoris sont synchronisés avec votre compte Web et Flutter. Cliquez sur
                   l’étoile d’un actif pour l’ajouter ou le retirer.
                 </span>
               </div>
