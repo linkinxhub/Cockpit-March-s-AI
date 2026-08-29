@@ -14,6 +14,7 @@ on:
       - 'tests/main-watchlist-contract.test.mjs'
       - 'tests/decision-journal-contract.test.mjs'
       - 'tests/ichimoku-chart-contract.test.mjs'
+      - 'tests/workspace-contract.test.mjs'
       - '.github/workflows/web-flutter-sync.yml'
   push:
     branches: [main]
@@ -29,6 +30,7 @@ on:
       - 'tests/main-watchlist-contract.test.mjs'
       - 'tests/decision-journal-contract.test.mjs'
       - 'tests/ichimoku-chart-contract.test.mjs'
+      - 'tests/workspace-contract.test.mjs'
 
 jobs:
   contract:
@@ -39,6 +41,6 @@ jobs:
         with:
           node-version: '22'
       - name: Verify Web ↔ Flutter contracts
-        run: node --test tests/sync-contract.test.mjs tests/notification-contract.test.mjs tests/migration-contract.test.mjs tests/user-sync-smoke-contract.test.mjs tests/main-watchlist-contract.test.mjs tests/decision-journal-contract.test.mjs tests/ichimoku-chart-contract.test.mjs
+        run: node --test tests/sync-contract.test.mjs tests/notification-contract.test.mjs tests/migration-contract.test.mjs tests/user-sync-smoke-contract.test.mjs tests/main-watchlist-contract.test.mjs tests/decision-journal-contract.test.mjs tests/ichimoku-chart-contract.test.mjs tests/workspace-contract.test.mjs
       - name: Confirm shared indicator engine is present
         run: test -s lib/indicator-engine.ts && test -s app/api/indicators/route.ts && test -s mobile/lib/features/indicators/data/indicator_repository.dart
