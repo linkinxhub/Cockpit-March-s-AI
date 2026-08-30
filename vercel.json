@@ -4,8 +4,7 @@
   "buildCommand": "npx next build",
   "git": {
     "deploymentEnabled": {
-      "feat/flutter-mobile-sync": false,
-      "feat/precommercialization-audit": false
+      "feat/flutter-mobile-sync": false
     }
   }
 }
