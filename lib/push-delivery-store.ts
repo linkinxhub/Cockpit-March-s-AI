@@ -1,0 +1,6 @@
+import{neon}from'@neondatabase/serverless';
+function connectionString(){return process.env.DATABASE_URL||process.env.POSTGRES_URL||process.env.NEON_DATABASE_URL||process.env.NEON_POSTGRES_URL||'';}
+function sql(){const url=connectionString();if(!url)throw new Error('storage_not_configured');return neon(url);}
+export async function listPushUserIds(){const rows=await sql()`select distinct d.user_id from notification_devices d join notification_preferences p on p.user_id=d.user_id where p.push_enabled=true order by d.user_id`;return rows.map((r:any)=>String(r.user_id));}
+export async function deliveryRecorded(userId:string,eventId:string,deviceId:string){const rows=await sql()`select 1 from notification_deliveries where user_id=${userId} and event_id=${eventId} and device_id=${deviceId} limit 1`;return rows.length>0;}
+export async function recordDelivery(userId:string,eventId:string,deviceId:string,provider:string,status:string){await sql()`insert into notification_deliveries(user_id,event_id,device_id,provider,status,delivered_at) values(${userId},${eventId},${deviceId},${provider},${status},${Date.now()}) on conflict(user_id,event_id,device_id) do update set provider=excluded.provider,status=excluded.status,delivered_at=excluded.delivered_at`;}

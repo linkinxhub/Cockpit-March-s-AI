@@ -1,0 +1,2 @@
+import{billingPlans,configuredPriceId}from'@/lib/billing-config';
+export async function GET(){return Response.json({plans:Object.values(billingPlans).map(plan=>({key:plan.key,label:plan.label,features:plan.features,limits:plan.limits,available:plan.key==='FREE'||Boolean(configuredPriceId(plan.key))})),testMode:process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')??false},{headers:{'Cache-Control':'public, max-age=300'}});}

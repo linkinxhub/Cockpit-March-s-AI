@@ -1,0 +1,3 @@
+import{getSharedUserIdentity}from'@/lib/user-identity';
+import{exportUserData}from'@/lib/account-data';
+export async function GET(){const user=await getSharedUserIdentity();if(!user)return Response.json({error:'authentication_required'},{status:401});try{const payload=await exportUserData(user);return new Response(JSON.stringify(payload,null,2),{headers:{'Content-Type':'application/json','Content-Disposition':'attachment; filename="cockpit-user-data.json"','Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}catch(e){return Response.json({error:e instanceof Error?e.message:'export_failed'},{status:500});}}

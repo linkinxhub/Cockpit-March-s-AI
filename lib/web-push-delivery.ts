@@ -1,0 +1,6 @@
+import webpush from'web-push';
+
+type PushMessage={title:string;body:string;url:string;eventId:string;assetKey:string};
+let configured=false;
+function configure(){if(configured)return;const publicKey=process.env.WEB_PUSH_PUBLIC_KEY,privateKey=process.env.WEB_PUSH_PRIVATE_KEY,subject=process.env.WEB_PUSH_SUBJECT||process.env.NEXT_PUBLIC_SUPPORT_EMAIL;if(!publicKey||!privateKey||!subject)throw new Error('web_push_not_configured');webpush.setVapidDetails(subject.startsWith('mailto:')?subject:`mailto:${subject}`,publicKey,privateKey);configured=true;}
+export async function sendWebPush(subscription:{endpoint:string;p256dh:string;auth:string},message:PushMessage){try{configure();const response=await webpush.sendNotification({endpoint:subscription.endpoint,keys:{p256dh:subscription.p256dh,auth:subscription.auth}},JSON.stringify({title:message.title,body:message.body,url:message.url,tag:message.eventId,eventId:message.eventId,assetKey:message.assetKey}),{TTL:300,urgency:'high'});return{ok:true,status:response.statusCode,provider:'webPush' as const};}catch(e:any){return{ok:false,status:Number(e?.statusCode)||500,provider:'webPush' as const,reason:e instanceof Error?e.message:'web_push_failed'};}}

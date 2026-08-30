@@ -1,0 +1,2 @@
+export const legalOperator={name:process.env.LEGAL_OPERATOR_NAME||'',address:process.env.LEGAL_OPERATOR_ADDRESS||'',country:process.env.LEGAL_OPERATOR_COUNTRY||'',companyNumber:process.env.LEGAL_COMPANY_NUMBER||'',supportEmail:process.env.NEXT_PUBLIC_SUPPORT_EMAIL||''};
+export function legalConfigured(){return Boolean(legalOperator.name&&legalOperator.address&&legalOperator.country&&legalOperator.supportEmail);}

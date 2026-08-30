@@ -10,8 +10,6 @@ class MobileSessionRepository{
   Future<String?> readToken()async=>_storage.read(key:_tokenKey);
   Future<void> clear()async=>_storage.delete(key:_tokenKey);
 
-  Future<ApiClient> authenticatedClient(String baseUrl)async{
-    final token=await readToken();
-    return ApiClient(baseUrl:baseUrl,bearerToken:token);
-  }
+  Future<String> claimPairingCode(String baseUrl,String code)async{final api=ApiClient(baseUrl:baseUrl),json=await api.postJson('/api/mobile-pair/claim',{'code':code});final token=json['token']?.toString()??'';if(token.isEmpty)throw Exception(json['error']?.toString()??'pairing_failed');return token;}
+  Future<ApiClient> authenticatedClient(String baseUrl)async{final token=await readToken();return ApiClient(baseUrl:baseUrl,bearerToken:token);}
 }

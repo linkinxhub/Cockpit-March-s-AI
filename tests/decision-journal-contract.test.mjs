@@ -38,8 +38,8 @@ test('Flutter exposes and renders synchronized decision notes',()=>{
  assert.match(flutterUi,/removeDecisionNote/);
 });
 
-test('manifest keeps decision journal contract in v2.4',()=>{
- assert.match(manifest,/schemaVersion:'2\.4\.0'/);
+test('manifest keeps decision journal contract in v2.6',()=>{
+ assert.match(manifest,/schemaVersion:'2\.6\.0'/);
  assert.match(manifest,/decisionNotes:'\/api\/user-sync\/decision-notes'/);
  assert.match(manifest,/0004_decision_notes\.sql/);
  assert.match(manifest,/decisionJournal/);
