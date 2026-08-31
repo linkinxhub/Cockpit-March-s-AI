@@ -13,6 +13,7 @@ test('first login creates one stable profile and Discovery membership',()=>{
  assert.match(store,/'DISCOVERY','ACTIVE'/);
  assert.doesNotMatch(store,/password/i);
 });
+test('first administrator bootstrap trusts stable server identity, never browser email',()=>{const store=fs.readFileSync('lib/account-store.ts','utf8');assert.match(store,/BOOTSTRAP_ADMIN_STABLE_USER_ID===identity\.id/);assert.doesNotMatch(store,/ADMIN_EMAIL/);assert.match(store,/excluded\.role='ADMIN'/);});
 
 test('profile mutation trusts server identity and validates editable fields',()=>{
  assert.match(profileRoute,/authorizeApiRequest/);

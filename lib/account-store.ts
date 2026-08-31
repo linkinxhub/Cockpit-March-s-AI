@@ -10,8 +10,8 @@ function membershipFromRow(row:any):AccountMembership{return{userId:String(row.i
 
 export async function ensureAccount(identity:SharedUserIdentity):Promise<AccountMembership>{
  const url=connectionString();if(!url)throw new Error('storage_not_configured');
- const sql=neon(url),now=Date.now();
- const profiles=await sql`insert into user_profiles(id,stable_user_id,email,display_name,role,account_status,locale,last_login_at,created_at,updated_at) values(${identity.id},${identity.id},${identity.email},${identity.displayName},'USER','ACTIVE','fr',${now},${now},${now}) on conflict(stable_user_id) do update set email=excluded.email,last_login_at=excluded.last_login_at,updated_at=excluded.updated_at returning id`;
+ const sql=neon(url),now=Date.now(),initialRole=process.env.BOOTSTRAP_ADMIN_STABLE_USER_ID===identity.id?'ADMIN':'USER';
+ const profiles=await sql`insert into user_profiles(id,stable_user_id,email,display_name,role,account_status,locale,last_login_at,created_at,updated_at) values(${identity.id},${identity.id},${identity.email},${identity.displayName},${initialRole},'ACTIVE','fr',${now},${now},${now}) on conflict(stable_user_id) do update set email=excluded.email,role=case when excluded.role='ADMIN' then 'ADMIN' else user_profiles.role end,last_login_at=excluded.last_login_at,updated_at=excluded.updated_at returning id`;
  const userId=String(profiles[0].id),subscriptionId=`subscription:${userId}`;
  await sql`insert into subscriptions(id,user_id,plan,status,created_at,updated_at) values(${subscriptionId},${userId},'DISCOVERY','ACTIVE',${now},${now}) on conflict(user_id) do nothing`;
  return getAccountByUserId(userId);
