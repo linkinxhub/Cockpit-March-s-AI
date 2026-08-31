@@ -19,6 +19,9 @@ const files = [
   'db/migrations/0001_user_sync_postgres.sql',
   'db/migrations/0002_notification_devices.sql',
   'db/migrations/0003_notification_timezone.sql',
+  'db/migrations/0004_decision_notes.sql',
+  'db/migrations/0005_user_workspace_state.sql',
+  'db/migrations/0006_auth_rbac_subscriptions.sql',
 ];
 
 const sql = neon(connectionString);
