@@ -4,7 +4,7 @@ export type SharedUserIdentity={
   id:string;
   email:string;
   displayName:string;
-  source:'chatgpt'|'mobile';
+  source:'chatgpt'|'clerk'|'mobile';
 };
 
 type MobilePayload={id:string;email:string;displayName:string;exp:number};
@@ -34,13 +34,18 @@ export async function getSharedUserIdentity():Promise<SharedUserIdentity|null>{
   const h=await headers();
   const mobile=await mobileIdentity(h.get('authorization'));if(mobile)return mobile;
   const email=h.get('oai-authenticated-user-email');
-  if(!email)return null;
-  const encoded=h.get('oai-authenticated-user-full-name');
-  let fullName:string|null=null;
-  if(encoded&&h.get('oai-authenticated-user-full-name-encoding')==='percent-encoded-utf-8'){
-    try{fullName=decodeURIComponent(encoded);}catch{fullName=null;}
+  if(email){
+    const encoded=h.get('oai-authenticated-user-full-name');
+    let fullName:string|null=null;
+    if(encoded&&h.get('oai-authenticated-user-full-name-encoding')==='percent-encoded-utf-8'){
+      try{fullName=decodeURIComponent(encoded);}catch{fullName=null;}
+    }
+    return{id:stableId(email),email,displayName:fullName||email,source:'chatgpt'};
   }
-  return{id:stableId(email),email,displayName:fullName||email,source:'chatgpt'};
+  if(process.env.CLERK_SECRET_KEY&&process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY){
+    try{const{currentUser}=await import('@clerk/nextjs/server');const user=await currentUser();if(user){const clerkEmail=user.primaryEmailAddress?.emailAddress||user.emailAddresses[0]?.emailAddress;if(clerkEmail)return{id:`clerk:${user.id}`,email:clerkEmail,displayName:user.fullName||user.firstName||clerkEmail,source:'clerk'};}}catch{return null;}
+  }
+  return null;
 }
 
 export function mobileSessionConfigured(){return Boolean(process.env.MOBILE_SESSION_SECRET);}

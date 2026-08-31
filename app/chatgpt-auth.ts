@@ -46,11 +46,13 @@ export async function requireChatGPTUser(
 
 export function chatGPTSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
+  if(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)return `/sign-in?redirect_url=${encodeURIComponent(safeReturnTo)}`;
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
 export function chatGPTSignOutPath(returnTo = "/"): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
+  if(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)return `/sign-out?redirect_url=${encodeURIComponent(safeReturnTo)}`;
   return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 

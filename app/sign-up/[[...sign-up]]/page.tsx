@@ -1,0 +1,2 @@
+import{SignUp}from'@clerk/nextjs';import Link from'next/link';
+export default function SignUpPage(){if(!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)return <main className="authShell"><section><h1>Inscription temporairement indisponible</h1><Link href="/">Retour au cockpit</Link></section></main>;return <main className="authShell"><SignUp routing="path" path="/sign-up" signInUrl="/sign-in" forceRedirectUrl="/account"/></main>}
