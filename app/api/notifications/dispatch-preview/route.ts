@@ -1,11 +1,11 @@
-import{getSharedUserIdentity}from'@/lib/user-identity';
+import{authorizeApiRequest}from'@/lib/access-control';
 import{getUserSyncStore,userSyncStoreConfigured}from'@/lib/user-sync-store';
 import{loadNewsByAsset}from'@/lib/news-source';
 import{buildNewsAlerts}from'@/lib/news-alert-engine';
 import{buildPushDispatchPlan}from'@/lib/push-dispatch';
 
 export async function GET(req:Request){
- const user=await getSharedUserIdentity();if(!user)return Response.json({error:'authentication_required'},{status:401});
+ const auth=await authorizeApiRequest();if(auth.response)return auth.response;const user=auth.context.identity;
  if(!userSyncStoreConfigured())return Response.json({error:'storage_not_configured'},{status:503});
  const url=new URL(req.url),sinceRaw=Number(url.searchParams.get('since')||0),since=Number.isFinite(sinceRaw)?sinceRaw:0;
  try{

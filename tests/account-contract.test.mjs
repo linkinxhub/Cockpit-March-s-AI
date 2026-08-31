@@ -15,7 +15,7 @@ test('first login creates one stable profile and Discovery membership',()=>{
 });
 
 test('profile mutation trusts server identity and validates editable fields',()=>{
- assert.match(profileRoute,/getSharedUserIdentity/);
+ assert.match(profileRoute,/authorizeApiRequest/);
  assert.match(profileRoute,/requireSameOrigin/);
  assert.match(profileRoute,/z\.object/);
  assert.match(profileRoute,/\.strict\(\)/);
@@ -24,6 +24,6 @@ test('profile mutation trusts server identity and validates editable fields',()=
 
 test('account pages expose account management and four translations',()=>{
  assert.match(accountPage,/chatGPTSignOutPath/);
- assert.match(accountPage,/ensureAccount/);
+ assert.match(accountPage,/requirePageMembership/);
  for(const locale of['fr','en','de','nl'])assert.match(copy,new RegExp(`${locale}:`));
 });

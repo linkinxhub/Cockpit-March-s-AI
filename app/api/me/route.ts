@@ -1,7 +1,7 @@
-import{getSharedUserIdentity}from'@/lib/user-identity';
+import{authorizeApiRequest}from'@/lib/access-control';
 
 export async function GET(){
- const user=await getSharedUserIdentity();
- if(!user)return Response.json({authenticated:false,user:null},{status:401,headers:{'Cache-Control':'private, no-store'}});
- return Response.json({authenticated:true,user},{headers:{'Cache-Control':'private, no-store'}});
+ const auth=await authorizeApiRequest({allowSuspended:true});if(auth.response)return auth.response;
+ const{identity:user,membership}=auth.context;
+ return Response.json({authenticated:true,user,membership:{role:membership.role,plan:membership.plan,status:membership.accountStatus,locale:membership.locale}},{headers:{'Cache-Control':'private, no-store'}});
 }

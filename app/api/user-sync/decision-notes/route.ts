@@ -1,13 +1,12 @@
 import{assets}from'@/lib/market-data';
-import{getSharedUserIdentity}from'@/lib/user-identity';
+import{authorizeApiRequest}from'@/lib/access-control';
 import{getUserSyncStore,userSyncStoreConfigured}from'@/lib/user-sync-store';
 
 const validAssets=new Set(assets.map(asset=>asset.key));
 const textLimit=4000;
 
 export async function GET(){
- const user=await getSharedUserIdentity();
- if(!user)return Response.json({error:'authentication_required'},{status:401});
+ const auth=await authorizeApiRequest();if(auth.response)return auth.response;const user=auth.context.identity;
  if(!userSyncStoreConfigured())return Response.json({error:'storage_not_configured'},{status:503});
  try{
   const notes=await getUserSyncStore().listDecisionNotes(user.id);
@@ -16,8 +15,7 @@ export async function GET(){
 }
 
 export async function POST(req:Request){
- const user=await getSharedUserIdentity();
- if(!user)return Response.json({error:'authentication_required'},{status:401});
+ const auth=await authorizeApiRequest();if(auth.response)return auth.response;const user=auth.context.identity;
  if(!userSyncStoreConfigured())return Response.json({error:'storage_not_configured'},{status:503});
  let body:any;try{body=await req.json()}catch{return Response.json({error:'invalid_json'},{status:400});}
  const text=typeof body?.text==='string'?body.text.trim():'';
@@ -31,8 +29,7 @@ export async function POST(req:Request){
 }
 
 export async function DELETE(req:Request){
- const user=await getSharedUserIdentity();
- if(!user)return Response.json({error:'authentication_required'},{status:401});
+ const auth=await authorizeApiRequest();if(auth.response)return auth.response;const user=auth.context.identity;
  if(!userSyncStoreConfigured())return Response.json({error:'storage_not_configured'},{status:503});
  const id=new URL(req.url).searchParams.get('id')?.trim()||'';
  if(!id)return Response.json({error:'id_required'},{status:400});
