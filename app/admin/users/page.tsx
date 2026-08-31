@@ -1,0 +1,3 @@
+import Link from'next/link';import{requirePageMembership}from'@/lib/access-control';import{listAdminUsers}from'@/lib/admin-store';import{AdminUsersClient}from'./users-client';
+const titles={fr:'Utilisateurs',en:'Users',de:'Benutzer',nl:'Gebruikers'};
+export default async function AdminUsersPage(){const{membership}=await requirePageMembership('/admin/users',{roles:['ADMIN']});const users=await listAdminUsers('','');return <main className="adminShell"><header className="adminTop"><h1>{titles[membership.locale]}</h1><Link href="/admin">← Admin</Link></header><AdminUsersClient initialUsers={users} locale={membership.locale} actorUserId={membership.userId}/></main>}
