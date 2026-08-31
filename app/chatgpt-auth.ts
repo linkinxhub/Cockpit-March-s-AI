@@ -14,6 +14,9 @@ const USER_FULL_NAME_ENCODING_HEADER =
 const PERCENT_ENCODED_UTF8 = "percent-encoded-utf-8";
 const SIGN_IN_PATH = "/signin-with-chatgpt";
 const SIGN_OUT_PATH = "/signout-with-chatgpt";
+const CLERK_SIGN_IN_PATH = "/sign-in";
+const CLERK_SIGN_UP_PATH = "/sign-up";
+const CLERK_SIGN_OUT_PATH = "/sign-out";
 const CALLBACK_PATH = "/callback";
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
@@ -75,6 +78,11 @@ function isReservedAuthPath(pathname: string): boolean {
   return (
     pathname === SIGN_IN_PATH ||
     pathname === SIGN_OUT_PATH ||
+    pathname === CLERK_SIGN_IN_PATH ||
+    pathname.startsWith(`${CLERK_SIGN_IN_PATH}/`) ||
+    pathname === CLERK_SIGN_UP_PATH ||
+    pathname.startsWith(`${CLERK_SIGN_UP_PATH}/`) ||
+    pathname === CLERK_SIGN_OUT_PATH ||
     pathname === CALLBACK_PATH
   );
 }

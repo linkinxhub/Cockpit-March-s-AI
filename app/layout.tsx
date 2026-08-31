@@ -17,10 +17,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const page=(
+  const content=process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+    ? <ClerkProvider>{children}</ClerkProvider>
+    : children;
+
+  return (
     <html lang="fr">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{content}</body>
     </html>
   );
-  return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?<ClerkProvider>{page}</ClerkProvider>:page;
 }

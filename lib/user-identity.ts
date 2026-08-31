@@ -17,7 +17,7 @@ async function hmac(value:string){const secret=process.env.MOBILE_SESSION_SECRET
 async function verifyHmac(value:string,signature:string){const secret=process.env.MOBILE_SESSION_SECRET;if(!secret)return false;const key=await crypto.subtle.importKey('raw',bytes(secret),{name:'HMAC',hash:'SHA-256'},false,['verify']);return crypto.subtle.verify('HMAC',key,fromB64url(signature),bytes(value));}
 
 export async function createMobileSessionToken(user:SharedUserIdentity,ttlSeconds=7*24*60*60){
- if(user.source!=='chatgpt')throw new Error('web_authentication_required');
+ if(user.source==='mobile')throw new Error('web_authentication_required');
  const payload:MobilePayload={id:user.id,email:user.email,displayName:user.displayName,exp:Math.floor(Date.now()/1000)+ttlSeconds};
  const encoded=b64url(bytes(JSON.stringify(payload))),signature=b64url(await hmac(encoded));
  return{token:`${encoded}.${signature}`,expiresAt:payload.exp*1000};
