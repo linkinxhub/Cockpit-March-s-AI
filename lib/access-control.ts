@@ -3,6 +3,7 @@ import{chatGPTSignInPath}from'@/app/chatgpt-auth';
 import{ensureAccount}from'./account-store';
 import type{AccountMembership,UserRole}from'./account-types';
 import{getSharedUserIdentity,type SharedUserIdentity}from'./user-identity';
+import{EntitlementError,requireEntitlement,type Feature}from'./entitlements';
 
 export type RequestMembership={identity:SharedUserIdentity;membership:AccountMembership};
 export type ApiAuthorization={context:RequestMembership;response?:never}|{context?:never;response:Response};
@@ -28,3 +29,5 @@ export async function requirePageMembership(returnTo:string,options:{roles?:read
 
 export function requireAdminRole(membership:AccountMembership){if(membership.role!=='ADMIN')throw new Error('forbidden');}
 export function requireSupportRole(membership:AccountMembership){if(membership.role!=='SUPPORT'&&membership.role!=='ADMIN')throw new Error('forbidden');}
+
+export async function authorizeFeatureApi(feature:Feature):Promise<ApiAuthorization>{const auth=await authorizeApiRequest();if(auth.response)return auth;try{requireEntitlement(feature,auth.context.membership);return auth;}catch(error){if(error instanceof EntitlementError)return{response:Response.json({error:'entitlement_required',feature,requiredPlan:error.required,pricingUrl:'/pricing'},{status:403,headers:{'Cache-Control':'private, no-store'}})};return{response:Response.json({error:'forbidden'},{status:403})};}}

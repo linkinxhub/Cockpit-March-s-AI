@@ -27,6 +27,7 @@ import "./headline-assets.css";
 import "./audit-improvements.css";
 import "./decision-audit.css";
 import "./technical-indicators.css";
+import "./premium-access.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -71,6 +72,7 @@ import {
 } from "recharts";
 import { translateText, type Lang } from "@/lib/i18n";
 import { assets as marketAssets } from "@/lib/market-data";
+import type { Feature } from "@/lib/entitlements";
 import { InteractiveGuide } from "./interactive-guide";
 
 type Row = {
@@ -248,6 +250,8 @@ const nav = [
   [BookOpen, "Journal"],
   [Settings, "Paramètres"],
 ] as const;
+const viewFeatures:Partial<Record<(typeof nav)[number][1],Feature>>={Opportunités:'ALL_ASSETS',Prévisions:'FORECASTS','Scanner IA':'AI_INSTANT_ANALYSIS',Backtest:'EXTENDED_HISTORY',Passeports:'DECISION_PASSPORTS',Alertes:'ALERTS',Journal:'PAPER_TRADING'};
+const premiumUi={fr:{account:'Mon compte',label:'Fonction premium',text:'Cette fonction reste visible, mais son API est protégée côté serveur.',cta:'Voir les offres'},en:{account:'My account',label:'Premium feature',text:'This feature remains visible, while its API is protected on the server.',cta:'View plans'},de:{account:'Mein Konto',label:'Premium-Funktion',text:'Diese Funktion bleibt sichtbar, ihre API ist jedoch serverseitig geschützt.',cta:'Tarife ansehen'},nl:{account:'Mijn account',label:'Premiumfunctie',text:'Deze functie blijft zichtbaar, terwijl de API op de server is beveiligd.',cta:'Bekijk formules'}}as const;
 const horizonFactor: Record<Timeframe, number> = {
   "15m": 0.35,
   "30m": 0.5,
@@ -435,6 +439,8 @@ export default function Home() {
   const [favorites, setFavorites] = useState<string[]>([]),
     [favoritesReady, setFavoritesReady] = useState(false);
   const [language, setLanguage] = useState<Lang>("fr");
+  const [entitlements,setEntitlements]=useState<Record<string,{allowed:boolean;requiredPlan:string|null}>|null>(null);
+  const [lockedFeature,setLockedFeature]=useState<{feature:Feature;requiredPlan:string}|null>(null);
   const [panoramaOpen, setPanoramaOpen] = useState(true);
   const [panoramaCountdown, setPanoramaCountdown] = useState(10);
   const panoramaRef = useRef<HTMLElement>(null);
@@ -448,6 +454,8 @@ export default function Home() {
   const locale = { fr: "fr-FR", en: "en-US", de: "de-DE", nl: "nl-NL" }[
     language
   ];
+  useEffect(()=>{let active=true;fetch('/api/account/entitlements',{cache:'no-store'}).then(response=>response.ok?response.json():null).then(data=>{if(active&&data?.features)setEntitlements(data.features)}).catch(()=>{});return()=>{active=false}},[]);
+  const openView=(name:(typeof nav)[number][1])=>{const feature=viewFeatures[name],access=feature?entitlements?.[feature]:null;if(feature&&access&&!access.allowed){setLockedFeature({feature,requiredPlan:access.requiredPlan||'PRO'});return}setLockedFeature(null);setView(name)};
   const scan = async () => {
     const request = ++scanRequest.current;
     setScanning(true);
@@ -1739,10 +1747,11 @@ export default function Home() {
             <button
               className={view === name ? "selected" : ""}
               key={name}
-              onClick={() => setView(name)}
+              onClick={() => openView(name)}
             >
               <Icon />
               {name}
+              {viewFeatures[name]&&entitlements?.[viewFeatures[name]!]?.allowed===false?<span aria-label="Fonction premium">🔒</span>:null}
             </button>
           ))}
         </nav>
@@ -1813,6 +1822,7 @@ export default function Home() {
               </button>
             ))}
           </div>
+          <a className="accountShortcut" href="/account"><UserRound/><span>{premiumUi[language].account}</span></a>
           <button
             className={"stickyToggle " + (stickyEnabled ? "on" : "")}
             onClick={() => {
@@ -1853,6 +1863,7 @@ export default function Home() {
             Consulter la FSMA <ExternalLink />
           </a>
         </section>
+        {lockedFeature?<section className="premiumLock" role="status"><span aria-hidden="true">🔒</span><div><strong>{premiumUi[language].label} · {lockedFeature.requiredPlan}</strong><p>{premiumUi[language].text}</p></div><a href="/pricing">{premiumUi[language].cta}</a></section>:null}
         <button
           className="forecastTopBanner"
           data-guide="live-forecast"

@@ -1,5 +1,5 @@
 import{randomUUID}from'node:crypto';
-import{authorizeApiRequest}from'@/lib/access-control';
+import{authorizeFeatureApi}from'@/lib/access-control';
 import{getUserSyncStore,userSyncStoreConfigured,type NotificationDevicePlatform,type NotificationDeviceProvider}from'@/lib/user-sync-store';
 
 const platforms=new Set<NotificationDevicePlatform>(['web','android','ios']);
@@ -8,13 +8,13 @@ const compatible:Record<NotificationDevicePlatform,NotificationDeviceProvider>={
 const publicDevice=(d:any)=>({id:d.id,platform:d.platform,provider:d.provider,createdAt:d.createdAt,updatedAt:d.updatedAt,configured:Boolean(d.token||d.endpoint)});
 
 export async function GET(){
- const access=await authorizeApiRequest();if(access.response)return access.response;const user=access.context.identity;
+ const access=await authorizeFeatureApi('ALERTS');if(access.response)return access.response;const user=access.context.identity;
  if(!userSyncStoreConfigured())return Response.json({error:'storage_not_configured'},{status:503});
  try{const devices=await getUserSyncStore().listNotificationDevices(user.id);return Response.json({devices:devices.map(publicDevice)},{headers:{'Cache-Control':'private, no-store'}});}catch{return Response.json({error:'storage_unavailable'},{status:503});}
 }
 
 export async function PUT(req:Request){
- const access=await authorizeApiRequest();if(access.response)return access.response;const user=access.context.identity;
+ const access=await authorizeFeatureApi('ALERTS');if(access.response)return access.response;const user=access.context.identity;
  if(!userSyncStoreConfigured())return Response.json({error:'storage_not_configured'},{status:503});
  let body:any;try{body=await req.json();}catch{return Response.json({error:'invalid_json'},{status:400});}
  const platform=String(body?.platform||'') as NotificationDevicePlatform,provider=String(body?.provider||'') as NotificationDeviceProvider;
@@ -27,7 +27,7 @@ export async function PUT(req:Request){
 }
 
 export async function DELETE(req:Request){
- const access=await authorizeApiRequest();if(access.response)return access.response;const user=access.context.identity;
+ const access=await authorizeFeatureApi('ALERTS');if(access.response)return access.response;const user=access.context.identity;
  if(!userSyncStoreConfigured())return Response.json({error:'storage_not_configured'},{status:503});
  const id=new URL(req.url).searchParams.get('id');if(!id)return Response.json({error:'id_required'},{status:400});
  try{const removed=await getUserSyncStore().removeNotificationDevice(user.id,id);return removed?Response.json({ok:true,id}):Response.json({error:'not_found'},{status:404});}catch{return Response.json({error:'storage_unavailable'},{status:503});}

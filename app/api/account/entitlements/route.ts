@@ -1,0 +1,3 @@
+import{authorizeApiRequest}from'@/lib/access-control';
+import{FEATURES,canAccess,featureLimit,requiredPlan}from'@/lib/entitlements';
+export async function GET(){const auth=await authorizeApiRequest({allowSuspended:true});if(auth.response)return auth.response;const membership=auth.context.membership;return Response.json({plan:membership.plan,status:membership.subscriptionStatus,role:membership.role,features:Object.fromEntries(FEATURES.map(feature=>[feature,{allowed:canAccess(feature,membership),requiredPlan:requiredPlan(feature),limit:featureLimit(feature,membership)}]))},{headers:{'Cache-Control':'private, no-store'}});}

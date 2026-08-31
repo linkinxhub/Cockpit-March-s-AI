@@ -1,4 +1,5 @@
 import{assets}from'@/lib/market-data';
+import{authorizeFeatureApi}from'@/lib/access-control';
 
 const snapshotAt='2026-08-28T21:22:00.000Z';
 const fmp='https://site.financialmodelingprep.com';
@@ -23,6 +24,7 @@ function readAnswer(raw:string){
 }
 
 export async function GET(req:Request){
+ const access=await authorizeFeatureApi('AI_INSTANT_ANALYSIS');if(access.response)return access.response;
  const url=new URL(req.url),key=url.searchParams.get('asset')||'',period=url.searchParams.get('period')||'1d',asset=assets.find(a=>a.key===key);
  if(!asset)return Response.json({error:'Actif invalide'},{status:400});
  const apiKey=process.env.BIGDATA_API_KEY;

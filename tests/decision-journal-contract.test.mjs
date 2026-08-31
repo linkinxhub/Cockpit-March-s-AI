@@ -17,7 +17,7 @@ test('decision journal is durable and separate from paper trading',()=>{
  assert.match(store,/listDecisionNotes/);
  assert.match(store,/createDecisionNote/);
  assert.match(store,/deleteDecisionNote/);
- assert.match(api,/getSharedUserIdentity/);
+ assert.match(api,/authorizeApiRequest/);
  assert.match(api,/text_too_long/);
  assert.match(api,/crypto\.randomUUID/);
 });

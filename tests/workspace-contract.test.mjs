@@ -11,7 +11,7 @@ const migration=fs.readFileSync('db/migrations/0005_user_workspace_state.sql','u
 const manifest=fs.readFileSync('app/api/sync/manifest/route.ts','utf8');
 
 test('business workspace is durable and server-backed',()=>{
-  assert.match(api,/getSharedUserIdentity/);
+  assert.match(api,/authorizeApiRequest/);
   assert.match(api,/workspace/);
   assert.match(store,/user_workspace_state/);
   assert.match(store,/select profile,price_alerts,passports,updated_at/);

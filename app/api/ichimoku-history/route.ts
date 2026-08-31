@@ -1,7 +1,9 @@
 import{assets,chartPeriods,history,type ChartPeriod}from'@/lib/market-data';
 import{buildIchimokuHistoricalSignals}from'@/lib/ichimoku-history';
+import{authorizeFeatureApi}from'@/lib/access-control';
 
 export async function GET(req:Request){
+  const access=await authorizeFeatureApi('ICHIMOKU_ADVANCED');if(access.response)return access.response;
   const url=new URL(req.url),key=url.searchParams.get('symbol')||'',period=(url.searchParams.get('period')||'1d')as ChartPeriod;
   if(!assets.some(a=>a.key===key))return Response.json({error:'Symbole invalide'},{status:400});
   if(!(period in chartPeriods))return Response.json({error:'Période invalide'},{status:400});

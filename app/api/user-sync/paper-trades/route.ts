@@ -1,11 +1,11 @@
 import{assets}from'@/lib/market-data';
-import{authorizeApiRequest}from'@/lib/access-control';
+import{authorizeFeatureApi}from'@/lib/access-control';
 import{getUserSyncStore,userSyncStoreConfigured,type PaperTradeSide}from'@/lib/user-sync-store';
 
 const validAssets=new Set<string>(assets.map(a=>a.key));
 const validSides=new Set<PaperTradeSide>(['BUY','SELL']);
 function positiveDecimal(value:unknown){if(typeof value!=='string'&&typeof value!=='number')return null;const text=String(value).trim();const n=Number(text);return Number.isFinite(n)&&n>0?text:null;}
-async function user(){const auth=await authorizeApiRequest();if(auth.response)return{error:auth.response};if(!userSyncStoreConfigured())return{error:Response.json({error:'storage_not_configured'},{status:503})};return{identity:auth.context.identity};}
+async function user(){const auth=await authorizeFeatureApi('PAPER_TRADING');if(auth.response)return{error:auth.response};if(!userSyncStoreConfigured())return{error:Response.json({error:'storage_not_configured'},{status:503})};return{identity:auth.context.identity};}
 
 export async function GET(){const auth=await user();if(auth.error)return auth.error;try{const trades=await getUserSyncStore().listPaperTrades(auth.identity!.id);return Response.json({trades},{headers:{'Cache-Control':'private, no-store'}});}catch{return Response.json({error:'storage_unavailable'},{status:503});}}
 

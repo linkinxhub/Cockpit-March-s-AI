@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authorizeFeatureApi } from "@/lib/access-control";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,8 @@ function extractText(data: any) {
 }
 
 export async function POST(request: NextRequest) {
+  const access = await authorizeFeatureApi("AI_INSTANT_ANALYSIS");
+  if (access.response) return access.response;
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   if (limited(ip))
     return NextResponse.json({ code: "RATE_LIMITED" }, { status: 429 });

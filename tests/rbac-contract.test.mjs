@@ -24,7 +24,7 @@ test('central access guard distinguishes anonymous suspended and forbidden users
 });
 
 test('every personal API uses the server membership guard',()=>{
- for(const file of privateRoutes){const source=fs.readFileSync(file,'utf8');assert.match(source,/authorizeApiRequest/,file);}
+ for(const file of privateRoutes){const source=fs.readFileSync(file,'utf8');assert.match(source,/authorize(?:ApiRequest|FeatureApi)/,file);}
 });
 
 test('private user surfaces require an active server membership',()=>{
