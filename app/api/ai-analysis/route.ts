@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeFeatureApi } from "@/lib/access-control";
+import { consumeMonthlyUsage, UsageLimitError } from "@/lib/usage-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
   const asset = body?.asset || {};
   if (!clean(asset.symbol, 30) || !clean(body?.timeframe, 12))
     return NextResponse.json({ code: "INVALID_REQUEST" }, { status: 400 });
+  try{await consumeMonthlyUsage("AI_INSTANT_ANALYSIS",access.context.membership)}catch(error){if(error instanceof UsageLimitError)return NextResponse.json({code:"USAGE_LIMIT_REACHED",feature:error.feature,used:error.used,limit:error.limit,resetAt:error.resetAt},{status:429});throw error}
 
   const marketContext = {
     locale,

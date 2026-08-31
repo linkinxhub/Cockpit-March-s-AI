@@ -1,5 +1,6 @@
 import{assets}from'@/lib/market-data';
 import{authorizeFeatureApi}from'@/lib/access-control';
+import{consumeMonthlyUsage,UsageLimitError}from'@/lib/usage-store';
 
 const snapshotAt='2026-08-28T21:22:00.000Z';
 const fmp='https://site.financialmodelingprep.com';
@@ -29,6 +30,7 @@ export async function GET(req:Request){
  if(!asset)return Response.json({error:'Actif invalide'},{status:400});
  const apiKey=process.env.BIGDATA_API_KEY;
  if(!apiKey)return Response.json(fallback(asset.kind,asset.symbol),{headers:{'Cache-Control':'public, max-age=900'}});
+ try{await consumeMonthlyUsage('AI_INSTANT_ANALYSIS',access.context.membership)}catch(error){if(error instanceof UsageLimitError)return Response.json({error:'usage_limit_reached',feature:error.feature,used:error.used,limit:error.limit,resetAt:error.resetAt},{status:429});throw error}
  try{
   const message=`Analyse ${asset.symbol} (${asset.kind}) pour l'horizon ${period}. Retourne uniquement un objet JSON avec: bias entier de -8 à 8, confidence de 0 à 100, summary en français (2 phrases), catalysts (maximum 3 objets title, detail, impact, window, url), risks (maximum 3 chaînes), sources (objets title,url). Utilise des faits récents, distingue faits et inférences, et n'invente aucune source.`;
   const response=await fetch('https://agents.bigdata.com/v1/research-agent',{method:'POST',headers:{'X-API-KEY':apiKey,'Content-Type':'application/json'},body:JSON.stringify({message,research_effort:'lite'}),signal:AbortSignal.timeout(50_000)});
