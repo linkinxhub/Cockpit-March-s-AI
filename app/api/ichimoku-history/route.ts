@@ -9,6 +9,6 @@ export async function GET(req:Request){
   if(!(period in chartPeriods))return Response.json({error:'Période invalide'},{status:400});
   try{
     const points=await history(key,period),signals=buildIchimokuHistoricalSignals(points);
-    return Response.json({symbol:key,period,signals,updatedAt:new Date().toISOString()},{headers:{'Cache-Control':'public, max-age=60'}});
+    return Response.json({symbol:key,period,signals,updatedAt:new Date().toISOString()},{headers:{'Cache-Control':'private, max-age=60'}});
   }catch{return Response.json({error:'Historique indisponible'},{status:503});}
 }

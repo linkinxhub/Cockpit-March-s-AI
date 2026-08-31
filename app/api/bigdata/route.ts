@@ -29,7 +29,7 @@ export async function GET(req:Request){
  const url=new URL(req.url),key=url.searchParams.get('asset')||'',period=url.searchParams.get('period')||'1d',asset=assets.find(a=>a.key===key);
  if(!asset)return Response.json({error:'Actif invalide'},{status:400});
  const apiKey=process.env.BIGDATA_API_KEY;
- if(!apiKey)return Response.json(fallback(asset.kind,asset.symbol),{headers:{'Cache-Control':'public, max-age=900'}});
+ if(!apiKey)return Response.json(fallback(asset.kind,asset.symbol),{headers:{'Cache-Control':'private, max-age=900'}});
  try{await consumeMonthlyUsage('AI_INSTANT_ANALYSIS',access.context.membership)}catch(error){if(error instanceof UsageLimitError)return Response.json({error:'usage_limit_reached',feature:error.feature,used:error.used,limit:error.limit,resetAt:error.resetAt},{status:429});throw error}
  try{
   const message=`Analyse ${asset.symbol} (${asset.kind}) pour l'horizon ${period}. Retourne uniquement un objet JSON avec: bias entier de -8 à 8, confidence de 0 à 100, summary en français (2 phrases), catalysts (maximum 3 objets title, detail, impact, window, url), risks (maximum 3 chaînes), sources (objets title,url). Utilise des faits récents, distingue faits et inférences, et n'invente aucune source.`;
@@ -38,6 +38,6 @@ export async function GET(req:Request){
   const answer=readAnswer(await response.text()),match=answer.match(/\{[\s\S]*\}/);
   if(!match)throw new Error('Réponse incomplète');
   const parsed=JSON.parse(match[0]);
-  return Response.json({...fallback(asset.kind,asset.symbol),...parsed,provider:'Bigdata.com',mode:'live',connected:true,asset:asset.symbol,updatedAt:new Date().toISOString()},{headers:{'Cache-Control':'public, max-age=600'}});
- }catch{return Response.json({...fallback(asset.kind,asset.symbol),mode:'snapshot-fallback',error:'Analyse directe temporairement indisponible'},{headers:{'Cache-Control':'public, max-age=300'}})}
+  return Response.json({...fallback(asset.kind,asset.symbol),...parsed,provider:'Bigdata.com',mode:'live',connected:true,asset:asset.symbol,updatedAt:new Date().toISOString()},{headers:{'Cache-Control':'private, max-age=600'}});
+ }catch{return Response.json({...fallback(asset.kind,asset.symbol),mode:'snapshot-fallback',error:'Analyse directe temporairement indisponible'},{headers:{'Cache-Control':'private, max-age=300'}})}
 }
