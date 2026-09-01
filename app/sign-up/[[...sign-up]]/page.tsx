@@ -1,2 +1,2 @@
-import{SignUp}from'@clerk/nextjs';import Link from'next/link';
-export default function SignUpPage(){if(!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)return <main className="authShell"><section><h1>Inscription temporairement indisponible</h1><Link href="/">Retour au cockpit</Link></section></main>;return <main className="authShell"><SignUp routing="path" path="/sign-up" signInUrl="/sign-in" fallbackRedirectUrl="/account"/></main>}
+import Link from'next/link';import{redirect}from'next/navigation';import{auth0SignUpPath}from'@/app/chatgpt-auth';
+export default function SignUpPage(){if(!process.env.AUTH0_DOMAIN||!process.env.AUTH0_CLIENT_ID||!process.env.AUTH0_CLIENT_SECRET||!process.env.AUTH0_SECRET)return <main className="authShell"><section><h1>Inscription temporairement indisponible</h1><Link href="/">Retour au cockpit</Link></section></main>;redirect(auth0SignUpPath('/account'))}

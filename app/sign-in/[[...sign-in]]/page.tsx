@@ -1,3 +1,3 @@
-import{SignIn}from'@clerk/nextjs';import Link from'next/link';
-export default function SignInPage(){if(!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)return <AuthUnavailable/>;return <main className="authShell"><SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" fallbackRedirectUrl="/account"/></main>}
+import Link from'next/link';import{redirect}from'next/navigation';import{chatGPTSignInPath}from'@/app/chatgpt-auth';
+export default function SignInPage(){if(!process.env.AUTH0_DOMAIN||!process.env.AUTH0_CLIENT_ID||!process.env.AUTH0_CLIENT_SECRET||!process.env.AUTH0_SECRET)return <AuthUnavailable/>;redirect(chatGPTSignInPath('/account'))}
 function AuthUnavailable(){return <main className="authShell"><section><h1>Connexion temporairement indisponible</h1><p>Le fournisseur d’identité Vercel doit être configuré avant l’ouverture des comptes.</p><Link href="/">Retour au cockpit</Link></section></main>}

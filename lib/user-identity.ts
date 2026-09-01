@@ -4,7 +4,7 @@ export type SharedUserIdentity={
   id:string;
   email:string;
   displayName:string;
-  source:'chatgpt'|'clerk'|'mobile';
+  source:'chatgpt'|'auth0'|'mobile';
 };
 
 type MobilePayload={id:string;email:string;displayName:string;exp:number};
@@ -42,8 +42,8 @@ export async function getSharedUserIdentity():Promise<SharedUserIdentity|null>{
     }
     return{id:stableId(email),email,displayName:fullName||email,source:'chatgpt'};
   }
-  if(process.env.CLERK_SECRET_KEY&&process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY){
-    try{const{currentUser}=await import('@clerk/nextjs/server');const user=await currentUser();if(user){const clerkEmail=user.primaryEmailAddress?.emailAddress||user.emailAddresses[0]?.emailAddress;if(clerkEmail)return{id:`clerk:${user.id}`,email:clerkEmail,displayName:user.fullName||user.firstName||clerkEmail,source:'clerk'};}}catch{return null;}
+  if(process.env.AUTH0_DOMAIN&&process.env.AUTH0_CLIENT_ID&&process.env.AUTH0_CLIENT_SECRET&&process.env.AUTH0_SECRET){
+    try{const{getAuth0Client}=await import('./auth0');const session=await getAuth0Client().getSession();const user=session?.user;if(user?.sub&&user.email&&user.email_verified===true)return{id:`auth0:${user.sub}`,email:String(user.email),displayName:String(user.name||user.nickname||user.email),source:'auth0'};}catch{return null;}
   }
   return null;
 }

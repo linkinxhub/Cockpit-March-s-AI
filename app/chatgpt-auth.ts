@@ -14,9 +14,10 @@ const USER_FULL_NAME_ENCODING_HEADER =
 const PERCENT_ENCODED_UTF8 = "percent-encoded-utf-8";
 const SIGN_IN_PATH = "/signin-with-chatgpt";
 const SIGN_OUT_PATH = "/signout-with-chatgpt";
-const CLERK_SIGN_IN_PATH = "/sign-in";
-const CLERK_SIGN_UP_PATH = "/sign-up";
-const CLERK_SIGN_OUT_PATH = "/sign-out";
+const AUTH0_SIGN_IN_PATH = "/sign-in";
+const AUTH0_SIGN_UP_PATH = "/sign-up";
+const AUTH0_SIGN_OUT_PATH = "/sign-out";
+const AUTH0_CALLBACK_PATH = "/auth/callback";
 const CALLBACK_PATH = "/callback";
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
@@ -49,13 +50,13 @@ export async function requireChatGPTUser(
 
 export function chatGPTSignInPath(returnTo: string): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
-  if(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)return `/sign-in?redirect_url=${encodeURIComponent(safeReturnTo)}`;
+  if(auth0EnvironmentConfigured())return `/auth/login?returnTo=${encodeURIComponent(safeReturnTo)}`;
   return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
 export function chatGPTSignOutPath(returnTo = "/"): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
-  if(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)return `/sign-out?redirect_url=${encodeURIComponent(safeReturnTo)}`;
+  if(auth0EnvironmentConfigured())return `/auth/logout?returnTo=${encodeURIComponent(safeReturnTo)}`;
   return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
@@ -78,13 +79,24 @@ function isReservedAuthPath(pathname: string): boolean {
   return (
     pathname === SIGN_IN_PATH ||
     pathname === SIGN_OUT_PATH ||
-    pathname === CLERK_SIGN_IN_PATH ||
-    pathname.startsWith(`${CLERK_SIGN_IN_PATH}/`) ||
-    pathname === CLERK_SIGN_UP_PATH ||
-    pathname.startsWith(`${CLERK_SIGN_UP_PATH}/`) ||
-    pathname === CLERK_SIGN_OUT_PATH ||
+    pathname === AUTH0_SIGN_IN_PATH ||
+    pathname.startsWith(`${AUTH0_SIGN_IN_PATH}/`) ||
+    pathname === AUTH0_SIGN_UP_PATH ||
+    pathname.startsWith(`${AUTH0_SIGN_UP_PATH}/`) ||
+    pathname === AUTH0_SIGN_OUT_PATH ||
+    pathname === AUTH0_CALLBACK_PATH ||
     pathname === CALLBACK_PATH
   );
+}
+
+export function auth0SignUpPath(returnTo: string): string {
+  const safeReturnTo = safeRelativeReturnPath(returnTo);
+  if(auth0EnvironmentConfigured())return `/auth/login?screen_hint=signup&returnTo=${encodeURIComponent(safeReturnTo)}`;
+  return `${SIGN_IN_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
+}
+
+function auth0EnvironmentConfigured(): boolean {
+  return Boolean(process.env.AUTH0_DOMAIN&&process.env.AUTH0_CLIENT_ID&&process.env.AUTH0_CLIENT_SECRET&&process.env.AUTH0_SECRET);
 }
 
 function safeDecodeURIComponent(value: string): string | null {

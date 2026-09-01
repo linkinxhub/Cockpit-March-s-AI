@@ -1,4 +1,3 @@
-import{clerkMiddleware}from'@clerk/nextjs/server';import{NextResponse,type NextRequest,type NextFetchEvent}from'next/server';
-const clerk=clerkMiddleware({frontendApiProxy:{enabled:true}});
-export default function proxy(request:NextRequest,event:NextFetchEvent){if(!process.env.CLERK_SECRET_KEY||!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)return NextResponse.next();return clerk(request,event);}
+import{NextResponse,type NextRequest}from'next/server';import{auth0Configured,getAuth0Client}from'./lib/auth0';
+export default function proxy(request:NextRequest){if(!auth0Configured())return NextResponse.next();return getAuth0Client().middleware(request);}
 export const config={matcher:['/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)','/(api|trpc)(.*)']};
