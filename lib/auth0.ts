@@ -13,6 +13,6 @@ export function auth0Configured() {
 
 export function getAuth0Client() {
   if (!auth0Configured()) throw new Error('auth0_not_configured');
-  client ??= new Auth0Client();
+  client ??= new Auth0Client({ logoutStrategy: 'v2' });
   return client;
 }
