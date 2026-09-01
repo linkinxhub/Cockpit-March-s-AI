@@ -56,7 +56,7 @@ export function chatGPTSignInPath(returnTo: string): string {
 
 export function chatGPTSignOutPath(returnTo = "/"): string {
   const safeReturnTo = safeRelativeReturnPath(returnTo);
-  if(auth0EnvironmentConfigured())return `/auth/logout?returnTo=${encodeURIComponent(safeReturnTo)}`;
+  if(auth0EnvironmentConfigured())return '/auth/logout';
   return `${SIGN_OUT_PATH}?return_to=${encodeURIComponent(safeReturnTo)}`;
 }
 
