@@ -1,4 +1,5 @@
 import { Auth0Client } from '@auth0/nextjs-auth0/server';
+import { onAuth0Callback } from './auth0-callback';
 
 let client: Auth0Client | null = null;
 
@@ -13,6 +14,6 @@ export function auth0Configured() {
 
 export function getAuth0Client() {
   if (!auth0Configured()) throw new Error('auth0_not_configured');
-  client ??= new Auth0Client({ logoutStrategy: 'v2' });
+  client ??= new Auth0Client({ logoutStrategy: 'v2', onCallback: onAuth0Callback });
   return client;
 }
