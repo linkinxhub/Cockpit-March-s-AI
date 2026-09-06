@@ -19,18 +19,21 @@ const vite = await createServer({
       if (id === 'next/headers') return '\0headers-fixture';
       if (id === 'next/navigation') return '\0navigation-fixture';
       if (id === './auth0' && importer?.endsWith('/lib/user-identity.ts')) return '\0auth0-fixture';
+      if (id === './lib/auth0' && importer?.endsWith('/proxy.ts')) return '\0middleware-auth0-fixture';
     },
     load(id) {
       if (id === '\0native-next-server') return 'export const NextResponse=globalThis.__authNextResponse';
       if (id === '\0headers-fixture') return 'export async function headers(){return globalThis.__authHeaders}';
       if (id === '\0navigation-fixture') return 'export function redirect(url){throw new Error("redirect:"+url)}';
       if (id === '\0auth0-fixture') return 'export function getAuth0Client(){return {getSession:async()=>globalThis.__authSession}}';
+      if (id === '\0middleware-auth0-fixture') return 'export function auth0Configured(){return true} export function getAuth0Client(){return globalThis.__middlewareAuth0Client}';
     },
   }],
 });
 const identity = await vite.ssrLoadModule('/lib/user-identity.ts');
 const routes = await vite.ssrLoadModule('/app/chatgpt-auth.ts');
 const callback = await vite.ssrLoadModule('/lib/auth0-callback.ts');
+const proxy = (await vite.ssrLoadModule('/proxy.ts')).default;
 const keys = ['VERCEL','AUTH0_DOMAIN','AUTH0_CLIENT_ID','AUTH0_CLIENT_SECRET','AUTH0_SECRET','MOBILE_SESSION_SECRET'];
 const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
 beforeEach(() => {
@@ -46,6 +49,7 @@ afterEach(() => {
   }
   delete globalThis.__authHeaders;
   delete globalThis.__authSession;
+  delete globalThis.__middlewareAuth0Client;
 });
 after(async () => { await vite.close(); delete globalThis.__authNextResponse; });
 
@@ -140,6 +144,10 @@ test('real Auth0 SDK clears failed transactions and persists a successful sessio
       throw new Error(`Unexpected provider request: ${url}`);
     },
   });
+  globalThis.__middlewareAuth0Client = client;
+  const missingState = await proxy(new NextRequest('https://app.example.test/auth/callback'));
+  assert.equal(missingState.status, 303);
+  assert.equal(missingState.headers.get('location'), 'https://app.example.test/auth-error?reason=session_expired&returnTo=%2F');
   const login = async () => {
     const response = await client.middleware(new NextRequest('https://app.example.test/auth/login?returnTo=%2Faccount'));
     const target = new URL(response.headers.get('location'));
@@ -148,17 +156,17 @@ test('real Auth0 SDK clears failed transactions and persists a successful sessio
   };
   const failed = await login();
   const errorParams = new URLSearchParams({ state: failed.state, error: 'invalid_request', error_description: 'failed to fetch user profile (status: 401)' });
-  const failedResponse = await client.middleware(new NextRequest(`https://app.example.test/auth/callback?${errorParams}`, { headers: { cookie: failed.cookie } }));
+  const failedResponse = await proxy(new NextRequest(`https://app.example.test/auth/callback?${errorParams}`, { headers: { cookie: failed.cookie } }));
   assert.equal(failedResponse.status, 303);
-  assert.match(failedResponse.headers.get('location'), /^\/auth-error\?reason=provider_unavailable/);
+  assert.match(failedResponse.headers.get('location'), /^https:\/\/app.example.test\/auth-error\?reason=provider_unavailable/);
   assert.ok(failedResponse.cookies.getAll().some(c => c.name.startsWith('__txn_') && c.value === ''));
   assert.equal(failedResponse.cookies.getAll().some(c => c.name.startsWith('__session') && c.value), false);
 
   const success = await login();
   const successParams = new URLSearchParams({ state: success.state, code: 'fixture-code' });
-  const response = await client.middleware(new NextRequest(`https://app.example.test/auth/callback?${successParams}`, { headers: { cookie: success.cookie } }));
+  const response = await proxy(new NextRequest(`https://app.example.test/auth/callback?${successParams}`, { headers: { cookie: success.cookie } }));
   assert.equal(response.status, 303);
-  assert.equal(response.headers.get('location'), '/account');
+  assert.equal(response.headers.get('location'), 'https://app.example.test/account');
   const sessionCookie = response.cookies.getAll().filter(c => c.value).map(c => `${c.name}=${c.value}`).join('; ');
   const session = await client.getSession(new NextRequest('https://app.example.test/account', { headers: { cookie: sessionCookie } }));
   assert.equal(session.user.sub, 'google-oauth2|fixture');
