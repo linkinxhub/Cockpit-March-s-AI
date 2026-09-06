@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import'./auth.css';
-import{ClerkProvider}from'@clerk/nextjs';
 
 export const metadata: Metadata = {
   title: "Cockpit Marchés AI",
@@ -17,13 +16,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const content=process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-    ? <ClerkProvider>{children}</ClerkProvider>
-    : children;
-
   return (
     <html lang="fr">
-      <body className="antialiased">{content}</body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

@@ -17,6 +17,7 @@ import "./bigdata.css";
 import "./risk-warning.css";
 import "./top-forecast.css";
 import "./ai-analysis.css";
+import "./cockpit-ai-card.css";
 import "./panorama-collapse.css";
 import "./interactive-guide.css";
 import "./openai-auto.css";
@@ -74,6 +75,7 @@ import { translateText, type Lang } from "@/lib/i18n";
 import { assets as marketAssets } from "@/lib/market-data";
 import type { Feature } from "@/lib/entitlements";
 import { InteractiveGuide } from "./interactive-guide";
+import { analysisErrorMessage, includeActiveTimeframe, isLiveContext, isRecentTimestamp } from "@/lib/analysis-context";
 
 type Row = {
   symbol: string;
@@ -431,16 +433,22 @@ export default function Home() {
     [selectedNews, setSelectedNews] = useState<News | null>(null);
   const [bigdata, setBigdata] = useState<BigdataIntel | null>(null),
     [bigdataLoading, setBigdataLoading] = useState(false);
-  const [openAiAnalysis, setOpenAiAnalysis] = useState<OpenAiAnalysis | null>(null),
+  const [language, setLanguage] = useState<Lang>("fr");
+  const [openAiResult, setOpenAiAnalysis] = useState<(OpenAiAnalysis & { contextKey: string }) | null>(null),
     [openAiLoading, setOpenAiLoading] = useState(false),
     [openAiError, setOpenAiError] = useState("");
   const openAiRequest = useRef(0);
   const openAiLastKey = useRef("");
+  const openAiPendingKey = useRef("");
+  const openAiController = useRef<AbortController | null>(null);
+  const [openAiConfigured, setOpenAiConfigured] = useState<boolean | null>(null);
+  const openAiContextKey = [active.key, timeframe, language, analysisRevision, active.last, active.decision, active.unavailable].join("|");
+  const openAiAnalysis = openAiResult?.contextKey === openAiContextKey ? openAiResult : null;
   const [favorites, setFavorites] = useState<string[]>([]),
     [favoritesReady, setFavoritesReady] = useState(false);
-  const [language, setLanguage] = useState<Lang>("fr");
   const [entitlements,setEntitlements]=useState<Record<string,{allowed:boolean;requiredPlan:string|null}>|null>(null);
   const [lockedFeature,setLockedFeature]=useState<{feature:Feature;requiredPlan:string}|null>(null);
+  const aiAllowed = entitlements?.AI_INSTANT_ANALYSIS?.allowed === true;
   const [panoramaOpen, setPanoramaOpen] = useState(true);
   const [panoramaCountdown, setPanoramaCountdown] = useState(10);
   const panoramaRef = useRef<HTMLElement>(null);
@@ -496,6 +504,28 @@ export default function Home() {
     }
   };
   useEffect(() => {
+    ++openAiRequest.current;
+    openAiController.current?.abort();
+    openAiLastKey.current = "";
+    openAiPendingKey.current = "";
+    setOpenAiAnalysis(null);
+    setOpenAiLoading(false);
+    setOpenAiError("");
+    return () => { ++openAiRequest.current; openAiController.current?.abort(); };
+  }, [openAiContextKey]);
+  useEffect(() => {
+    if (!aiAllowed) return;
+    const controller = new AbortController();
+    fetch("/api/ai-analysis", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.code || data.error || "OPENAI_ERROR");
+        if (!controller.signal.aborted) setOpenAiConfigured(data.configured === true);
+      })
+      .catch((error) => { if (!controller.signal.aborted) setOpenAiError(error instanceof Error ? error.message : "OPENAI_ERROR"); });
+    return () => controller.abort();
+  }, [aiAllowed]);
+  useEffect(() => {
     const clock = window.setInterval(() => setCurrentNow(new Date()), 30000);
     return () => window.clearInterval(clock);
   }, []);
@@ -546,6 +576,7 @@ export default function Home() {
         throw new Error(payload?.error || `Historique indisponible (${r.status})`);
       })
       .then((d) => {
+        if (controller.signal.aborted) return;
         let ema = 0,
           a = 2 / 21;
         setChart(
@@ -581,8 +612,8 @@ export default function Home() {
       { cache: "no-store", signal: controller.signal },
     )
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d) => setTimeframeComparisons(d.comparisons || []))
-      .catch(() => setTimeframeComparisons([]))
+      .then((d) => { if (!controller.signal.aborted) setTimeframeComparisons(d.comparisons || []); })
+      .catch(() => { if (!controller.signal.aborted) setTimeframeComparisons([]); })
       .finally(() => {
         if (!controller.signal.aborted) setComparisonLoading(false);
       });
@@ -608,13 +639,14 @@ export default function Home() {
   useEffect(() => {
     const controller = new AbortController();
     setBigdataLoading(true);
+    setBigdata(null);
     fetch(`/api/bigdata?asset=${active.key}&period=${timeframe}`, {
       cache: "no-store",
       signal: controller.signal,
     })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setBigdata)
-      .catch(() => setBigdata(null))
+      .then((data) => { if (!controller.signal.aborted) setBigdata(data); })
+      .catch(() => { if (!controller.signal.aborted) setBigdata(null); })
       .finally(() => {
         if (!controller.signal.aborted) setBigdataLoading(false);
       });
@@ -1056,12 +1088,13 @@ export default function Home() {
         .sort((a, b) => b.publishedAt - a.publishedAt),
     [news, rows],
   );
+  const liveBigdata = isLiveContext(bigdata, active.symbol, currentNow.getTime()) ? bigdata : null;
   const forecasts = useMemo(() => {
     const positive =
         /gain|rise|rally|growth|beat|approval|deal|easing|cut|record|hausse|croissance|accord/i,
       negative =
         /fall|drop|loss|war|tariff|inflation|crisis|risk|sanction|probe|baisse|guerre|déficit/i,
-      titles = news[active.key] || [],
+      titles = (news[active.key] || []).filter((item) => isRecentTimestamp(item.publishedAt, currentNow.getTime(), 48 * 60 * 60_000)),
       newsScore = titles.reduce(
         (s, n) =>
           s +
@@ -1069,32 +1102,15 @@ export default function Home() {
           (negative.test(n.title) ? 1 : 0),
         0,
       ),
-      macroBias =
-        active.kind === "Métaux"
-          ? 4
-          : active.kind === "Crypto"
-            ? -2
-            : ["SP500", "NASDAQ100", "DOWJONES", "RUSSELL2000"].includes(
-                  active.key,
-                )
-              ? -3
-              : ["DAX40", "CAC40", "STOXX50"].includes(active.key)
-                ? -2
-                : active.key === "FTSE100"
-                  ? -3
-                  : 0,
-      items = timeframeComparisons.length
-        ? timeframeComparisons
-        : [
-            {
-              period: timeframe,
-              decision: active.decision,
-              confidence: active.confidence ?? 50,
-              change: active.change ?? 0,
-              rsi: active.rsi ?? 50,
-              risk: active.risk,
-            },
-          ];
+      macroBias = liveBigdata?.bias ?? 0,
+      items = includeActiveTimeframe(timeframeComparisons, {
+        period: timeframe,
+        decision: active.decision,
+        confidence: active.confidence ?? 50,
+        change: active.change ?? 0,
+        rsi: active.rsi ?? 50,
+        risk: active.risk,
+      });
     return items.map((item) => {
       const trend =
           item.decision === "ACHETER"
@@ -1113,8 +1129,7 @@ export default function Home() {
                 trend +
                 rsiBias +
                 Math.max(-8, Math.min(8, newsScore * 3)) +
-                macroBias +
-                (bigdata?.bias ?? 0),
+                macroBias,
             ),
           ),
         ),
@@ -1157,9 +1172,9 @@ export default function Home() {
         outlook: score >= 62 ? "HAUSSIER" : score <= 38 ? "BAISSIER" : "NEUTRE",
       };
     });
-  }, [active, news, timeframeComparisons, timeframe, bigdata?.bias]);
+  }, [active, news, timeframeComparisons, timeframe, liveBigdata?.bias, currentNow]);
   const selectedForecast =
-    forecasts.find((f) => f.period === timeframe) || forecasts[0];
+    forecasts.find((f) => f.period === timeframe);
   const technicalStudy = useMemo(() => {
     if (chart.length < 52) return null;
     const midpoint = (end:number, period:number) => {
@@ -1307,7 +1322,7 @@ export default function Home() {
           35 +
           (timeframeComparisons.length ? 20 : 0) +
           ((news[active.key]?.length || 0) ? 15 : 0) +
-          (bigdata?.connected ? 15 : 0) +
+          (liveBigdata ? 15 : 0) +
           (openAiAnalysis ? 15 : 0),
         )),
     conditionalSignal = active.decision === "ACHETER"
@@ -1317,19 +1332,36 @@ export default function Home() {
         : `Rester en observation entre ${number(active.support, 5)} et ${number(active.resistance, 5)} jusqu’à une clôture confirmée.`;
   const marketSession = active.kind === "Indices" ? indexMarketStatus(active.key,currentNow) : null;
   const runOpenAiAnalysis = async (force = false, signal?: AbortSignal) => {
-    if (!selectedForecast || active.unavailable) return;
+    if (!aiAllowed || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError) return;
+    if (!force && openAiConfigured !== true) return;
     const analysisKey = [active.key, timeframe, language, analysisRevision, active.last,
       active.decision, selectedForecast.outlook, selectedForecast.reliability,
       bigdata?.updatedAt || "", newsUpdated].join("|");
-    if (!force && openAiLastKey.current === analysisKey) return;
+    if (!force && (openAiLastKey.current === analysisKey || openAiPendingKey.current === analysisKey)) return;
+    openAiController.current?.abort();
+    const controller = new AbortController();
+    openAiController.current = controller;
+    const abort = () => controller.abort();
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) controller.abort();
+    const timeout = window.setTimeout(() => controller.abort(new DOMException("Analysis timed out", "TimeoutError")), 45_000);
     const requestId = ++openAiRequest.current;
+    openAiPendingKey.current = analysisKey;
     setOpenAiLoading(true);
     setOpenAiError("");
     try {
+      if (force) {
+        const status = await fetch("/api/ai-analysis", { cache: "no-store", signal: controller.signal });
+        const availability = await status.json();
+        if (!status.ok) throw new Error(availability.code || availability.error || "OPENAI_ERROR");
+        if (controller.signal.aborted || requestId !== openAiRequest.current) return;
+        setOpenAiConfigured(availability.configured === true);
+        if (!availability.configured) throw new Error("SERVICE_UNAVAILABLE");
+      }
       const response = await fetch("/api/ai-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal,
+        signal: controller.signal,
         body: JSON.stringify({
           locale: language,
           timeframe,
@@ -1346,31 +1378,41 @@ export default function Home() {
             bull: selectedForecast.bull, neutral: selectedForecast.neutral, bear: selectedForecast.bear,
             newsScore: selectedForecast.newsScore, macroBias: selectedForecast.macroBias,
           },
-          bigdata,
-          news: (news[active.key] || []).slice(0, 5),
+          bigdata: liveBigdata,
+          news: (news[active.key] || []).filter((item) => isRecentTimestamp(item.publishedAt, Date.now(), 48 * 60 * 60_000)).slice(0, 5),
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.code || "OPENAI_ERROR");
-      if (requestId !== openAiRequest.current) return;
-      setOpenAiAnalysis({ ...data.analysis, generatedAt: data.generatedAt, model: data.model });
+      if (!response.ok) throw new Error(data.code || data.error || "OPENAI_ERROR");
+      if (controller.signal.aborted || requestId !== openAiRequest.current) return;
+      setOpenAiAnalysis({ ...data.analysis, generatedAt: data.generatedAt, model: data.model, contextKey: openAiContextKey });
       openAiLastKey.current = analysisKey;
     } catch (error) {
-      if (signal?.aborted || requestId !== openAiRequest.current) return;
-      const code = error instanceof Error ? error.message : "OPENAI_ERROR";
+      if (requestId !== openAiRequest.current || signal?.aborted) return;
+      if (controller.signal.aborted && controller.signal.reason?.name !== "TimeoutError") return;
+      const code = controller.signal.reason?.name === "TimeoutError" ? "OPENAI_TIMEOUT" : error instanceof Error ? error.message : "OPENAI_ERROR";
+      if (code === "SERVICE_UNAVAILABLE" || code === "OPENAI_NOT_CONFIGURED" || code === "OPENAI_AUTH_ERROR") setOpenAiConfigured(false);
       setOpenAiError(code);
     } finally {
-      if (requestId === openAiRequest.current) setOpenAiLoading(false);
+      window.clearTimeout(timeout);
+      signal?.removeEventListener("abort", abort);
+      if (requestId === openAiRequest.current) {
+        openAiPendingKey.current = "";
+        setOpenAiLoading(false);
+      }
     }
   };
   useEffect(() => {
-    if (view !== "Prévisions" || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading) return;
+    if (!["Cockpit", "Prévisions"].includes(view) || openAiConfigured !== true || !aiAllowed || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => void runOpenAiAnalysis(false, controller.signal), 1100);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [view, active.key, active.last, active.decision, timeframe, language, analysisRevision,
     selectedForecast?.outlook, selectedForecast?.reliability, bigdata?.updatedAt,
-    newsUpdated, chartLoading, comparisonLoading, bigdataLoading]);
+    newsUpdated, chartLoading, comparisonLoading, bigdataLoading, historyError, aiAllowed, openAiConfigured]);
+  const visibleOpenAiError = openAiError || (aiAllowed && openAiConfigured === false ? "SERVICE_UNAVAILABLE" : "");
+  const aiDataLoading = chartLoading || comparisonLoading || bigdataLoading;
+  const aiButtonDisabled = openAiLoading || (aiAllowed && (active.unavailable || aiDataLoading || Boolean(historyError)));
   const forecastChartData = forecasts.map((f) => ({
     period: timeframes.find(([key]) => key === f.period)?.[1] || f.period,
     range: f.low !== null && f.high !== null ? [f.low, f.high] : null,
@@ -2125,6 +2167,28 @@ export default function Home() {
                 <em className={(active.change ?? 0) >= 0 ? "up" : "down"}>
                   {percent(active.change)}
                 </em>
+              </div>
+            </section>
+            <section className="cockpitAiCard" aria-label="Analyse instantanée OpenAI">
+              <div className="cockpitAiCardTitle">
+                <span><Bot /><small>ANALYSE INSTANTANÉE OPENAI</small><b>{active.symbol} · {timeframeLabel}</b></span>
+                {openAiAnalysis && <strong className={openAiAnalysis.decision === "ACHETER" ? "buy" : openAiAnalysis.decision === "VENDRE" ? "sell" : "wait"}>{openAiAnalysis.decision}</strong>}
+              </div>
+              <div className="cockpitAiCardBody">
+                {openAiLoading
+                  ? <p>OpenAI croise les indicateurs, les prévisions, Bigdata et les actualités…</p>
+                  : openAiAnalysis
+                    ? <><p>{openAiAnalysis.summary}</p><small>Confiance d’alignement : {openAiAnalysis.confidence}% · Analyse éducative, sans exécution d’ordre.</small></>
+                    : <><p>{aiAllowed ? "Lancez une lecture IA du contexte de marché actuellement affiché." : "L’analyse IA reste visible et peut être débloquée avec la formule Expert."}</p></>}
+                {visibleOpenAiError && <small role="status">{analysisErrorMessage(visibleOpenAiError)}</small>}
+              </div>
+              <div className="cockpitAiCardActions">
+                <button onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : (window.location.href = "/account")} disabled={aiButtonDisabled}>
+                  <Activity />{openAiLoading ? "Analyse en cours…" : aiAllowed ? aiDataLoading ? "Chargement des données…" : openAiConfigured === false ? "Vérifier l’activation" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant" : "Découvrir Expert"}
+                </button>
+                <button className="secondary" onClick={() => { openView("Prévisions"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                  Voir l’analyse détaillée <ExternalLink />
+                </button>
               </div>
             </section>
             <div className="workspace">
@@ -3285,7 +3349,7 @@ export default function Home() {
                   <article>
                     <h3>Actualités intégrées</h3>
                     <p>
-                      {news[active.key]?.length || 0} titres récents inspectés.
+                      {(news[active.key] || []).filter((item) => isRecentTimestamp(item.publishedAt, currentNow.getTime(), 48 * 60 * 60_000)).length} titres récents inspectés.
                       Biais lexical :{" "}
                       {selectedForecast.newsScore > 0
                         ? "positif"
@@ -3301,9 +3365,8 @@ export default function Home() {
                     <p>
                       Biais macro appliqué :{" "}
                       {selectedForecast.macroBias > 0 ? "+" : ""}
-                      {selectedForecast.macroBias} points. Il reflète les
-                      décisions monétaires et risques globaux pertinents pour
-                      cette classe d’actifs.
+                      {selectedForecast.macroBias} points.
+                      {liveBigdata ? " Le contexte récent de cet actif est intégré." : " Aucun contexte macro récent connecté : aucun biais ajouté."}
                     </p>
                   </article>
                   <article>
@@ -3357,21 +3420,21 @@ export default function Home() {
                   </span>
                 </div>
                 <div className="openAiControls">
-                  <span className="openAiAuto"><i className={openAiLoading ? "pulse" : ""} />Actualisation automatique</span>
-                  <button onClick={() => void runOpenAiAnalysis(true)} disabled={openAiLoading || active.unavailable}>
+                  <span className="openAiAuto"><i className={openAiLoading ? "pulse" : ""} />{openAiConfigured === true ? "Actualisation automatique" : "Activation en attente"}</span>
+                  <button onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : (window.location.href = "/account")} disabled={aiButtonDisabled}>
                     <Activity />
-                    {openAiLoading ? "Analyse en cours…" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant"}
+                    {openAiLoading ? "Analyse en cours…" : !aiAllowed ? "Débloquer avec Expert" : aiDataLoading ? "Chargement des données…" : openAiConfigured === false ? "Vérifier l’activation" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant"}
                   </button>
                 </div>
               </div>
               {openAiLoading && !openAiAnalysis && (
                 <div className="openAiEmpty"><Bot /><b>OpenAI inspecte le contexte actuel…</b><span>L’actif, la période et les dernières données sont analysés ensemble.</span></div>
               )}
-              {openAiError && (
-                <div className="openAiError">
+              {visibleOpenAiError && (
+                <div className="openAiError" role="status">
                   <AlertTriangle />
-                  <span><b>Analyse OpenAI indisponible</b><small>{openAiError === "OPENAI_LIMIT" || openAiError === "RATE_LIMITED" ? "Limite temporaire atteinte. Réessayez dans une minute." : openAiError === "OPENAI_NOT_CONFIGURED" ? "La clé serveur OPENAI_API_KEY n’est pas encore disponible pour ce déploiement." : "Vérifiez la clé, le crédit API ou réessayez dans quelques instants."}</small></span>
-                  <button onClick={() => void runOpenAiAnalysis(true)}>Réessayer</button>
+                  <span><b>Analyse OpenAI indisponible</b><small>{analysisErrorMessage(visibleOpenAiError)}</small></span>
+                  <button disabled={aiButtonDisabled} onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : (window.location.href = "/account")}>Réessayer</button>
                 </div>
               )}
               {openAiAnalysis && (
@@ -3391,7 +3454,7 @@ export default function Home() {
                   <div className="openAiInvalidation"><ShieldCheck /><span><b>Condition d’invalidation</b>{openAiAnalysis.invalidation}</span><small>Généré {new Date(openAiAnalysis.generatedAt).toLocaleString(locale)}</small></div>
                 </>
               )}
-              {!openAiLoading && !openAiError && !openAiAnalysis && (
+              {!openAiLoading && !visibleOpenAiError && !openAiAnalysis && (
                 <div className="openAiEmpty"><Bot /><b>Analyse prête</b><span>Cliquez pour obtenir une explication IA liée à {active.symbol} sur {timeframeLabel}.</span></div>
               )}
             </section>

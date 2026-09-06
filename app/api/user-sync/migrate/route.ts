@@ -1,6 +1,6 @@
 import{runUserSyncMigrations}from'@/lib/user-sync-migration-runner';
 
-const expectedBranches=new Set(['feat/flutter-mobile-sync','feat/auth-rbac-subscriptions']);
+const expectedBranches=new Set(['feat/flutter-mobile-sync','feat/auth-rbac-subscriptions','feat/auth0-migration']);
 const expectedConfirmation='APPLY_USER_SYNC_V1';
 
 export async function POST(req:Request){

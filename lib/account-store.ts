@@ -11,7 +11,7 @@ function membershipFromRow(row:any):AccountMembership{return{userId:String(row.i
 export async function ensureAccount(identity:SharedUserIdentity):Promise<AccountMembership>{
  const url=connectionString();if(!url)throw new Error('storage_not_configured');
  const bootstrapId=process.env.BOOTSTRAP_ADMIN_STABLE_USER_ID;
- const isBootstrapAdmin=bootstrapId===identity.id||(identity.source==='clerk'&&bootstrapId===identity.id.replace(/^clerk:/,''));
+ const isBootstrapAdmin=bootstrapId===identity.id||(identity.source==='auth0'&&bootstrapId===identity.id.replace(/^auth0:/,''));
  const sql=neon(url),now=Date.now(),initialRole=isBootstrapAdmin?'ADMIN':'USER';
  const profiles=await sql`insert into user_profiles(id,stable_user_id,email,display_name,role,account_status,locale,last_login_at,created_at,updated_at) values(${identity.id},${identity.id},${identity.email},${identity.displayName},${initialRole},'ACTIVE','fr',${now},${now},${now}) on conflict(stable_user_id) do update set email=excluded.email,role=case when excluded.role='ADMIN' then 'ADMIN' else user_profiles.role end,last_login_at=excluded.last_login_at,updated_at=excluded.updated_at returning id`;
  const userId=String(profiles[0].id),subscriptionId=`subscription:${userId}`;

@@ -1,1 +1,146 @@
-.pricingShell{min-height:100vh;padding:28px;max-width:1200px;margin:auto;color:#eaf2ff}.pricingShell>header{display:flex;align-items:center;justify-content:space-between;gap:14px}.pricingShell a{color:#8bd8ff;text-decoration:none}.pricingShell nav{display:flex;gap:6px}.pricingShell nav button{border:1px solid #31445e;background:#111c30;color:#cbd5e1;border-radius:8px;padding:7px}.pricingShell nav button.active{background:#0ea5e9;color:#042033}.pricingHero{text-align:center;padding:70px 0 42px}.pricingHero p{color:#38bdf8;font-weight:800;letter-spacing:.12em}.pricingHero h1{font-size:clamp(2.2rem,6vw,4.6rem);margin:10px auto;max-width:800px}.pricingHero span{color:#9fb0c6}.pricingGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.pricingGrid article{border:1px solid #263851;background:#0d1729;border-radius:24px;padding:26px;display:flex;flex-direction:column}.pricingGrid article.featured{border-color:#38bdf8;box-shadow:0 20px 70px #0ea5e933}.price{display:flex;align-items:baseline;gap:8px}.price b{font-size:2.5rem}.price span,.pricingGrid li{color:#aebed2}.pricingGrid ul{list-style:none;padding:0;display:grid;gap:10px;flex:1}.pricingGrid article>a{background:#0ea5e9;color:#052033;text-align:center;border-radius:12px;padding:12px;font-weight:800}@media(max-width:800px){.pricingGrid{grid-template-columns:1fr}.pricingShell>header{flex-wrap:wrap}.pricingShell nav{order:3;width:100%;justify-content:center}}
+.pricingShell {
+  min-height: 100vh;
+  padding: 28px;
+  max-width: 1200px;
+  margin: auto;
+  color: #eaf2ff;
+}
+.pricingShell > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.pricingShell a {
+  color: #8bd8ff;
+  text-decoration: none;
+}
+.pricingShell nav {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+.pricingShell nav button {
+  border: 1px solid #31445e;
+  background: #111c30;
+  color: #cbd5e1;
+  border-radius: 8px;
+  padding: 7px;
+}
+.pricingShell nav button.active {
+  background: #0ea5e9;
+  color: #042033;
+}
+.pricingHero {
+  text-align: center;
+  padding: 70px 0 42px;
+}
+.pricingHero p {
+  color: #38bdf8;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.pricingHero h1 {
+  font-size: clamp(2.2rem, 6vw, 4.6rem);
+  margin: 10px auto;
+  max-width: 800px;
+}
+.pricingHero span {
+  color: #9fb0c6;
+}
+.pricingGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.pricingGrid article {
+  border: 1px solid #263851;
+  background: #0d1729;
+  border-radius: 24px;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+}
+.pricingGrid article.featured {
+  border-color: #38bdf8;
+  box-shadow: 0 20px 70px #0ea5e933;
+}
+.price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.price b {
+  font-size: 2.5rem;
+}
+.price span,
+.pricingGrid li {
+  color: #aebed2;
+}
+.pricingGrid ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  flex: 1;
+}
+.pricingGrid article > a {
+  background: #0ea5e9;
+  color: #052033;
+  text-align: center;
+  border-radius: 12px;
+  padding: 12px;
+  font-weight: 800;
+}
+@media (max-width: 800px) {
+  .pricingGrid {
+    grid-template-columns: 1fr;
+  }
+  .pricingShell > header {
+    height: auto;
+    min-height: 68px;
+    flex-wrap: wrap;
+    padding-block: 12px;
+  }
+  .pricingShell nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+  .pricingHero {
+    min-width: 0;
+    padding: 48px 0 32px;
+  }
+  .pricingHero h1 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
+@media (max-width: 480px) {
+  .pricingShell {
+    padding: 16px;
+  }
+  .pricingShell > header {
+    gap: 10px;
+    padding-inline: 0;
+  }
+  .pricingShell nav {
+    flex-wrap: wrap;
+  }
+  .pricingHero {
+    padding: 36px 0 28px;
+  }
+  .pricingHero h1 {
+    font-size: clamp(2rem, 11vw, 3rem);
+    line-height: 1.08;
+  }
+  .pricingHero span,
+  .pricingHero small {
+    display: block;
+    max-width: 100%;
+    line-height: 1.5;
+  }
+  .pricingGrid article {
+    padding: 22px;
+  }
+}

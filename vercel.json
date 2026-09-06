@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "npx next build",
+  "buildCommand": "npx next build && node scripts/verify-openai-analysis.mjs",
   "git": {
     "deploymentEnabled": {
       "feat/flutter-mobile-sync": false
