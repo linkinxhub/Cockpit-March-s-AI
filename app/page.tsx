@@ -1,6 +1,5 @@
 "use client";
 import "./modules.css";
-import GoogleMarketLinks from "@/components/google-market-links";
 import "./news.css";
 import "./ribbon.css";
 import "./decision.css";
@@ -2204,7 +2203,6 @@ export default function Home() {
                 </em>
               </div>
             </section>
-            <GoogleMarketLinks asset={active} language={language} />
             <section className="cockpitAiCard" aria-label="Analyse instantanée OpenAI">
               <div className="cockpitAiCardTitle">
                 <span><Bot /><small>ANALYSE INSTANTANÉE OPENAI</small><b>{active.symbol} · {timeframeLabel}</b></span>
