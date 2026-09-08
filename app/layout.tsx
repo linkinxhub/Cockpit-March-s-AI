@@ -1,3 +1,4 @@
+import FeedbackCenter from "@/components/feedback-center";
 import UpdateCenter from "@/components/update-center";
 import { BUILD_ID } from "@/lib/build-version";
 import type { Metadata } from "next";
@@ -20,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className="antialiased">{children}<UpdateCenter runningBuild={BUILD_ID}/></body>
+      <body className="antialiased">{children}<FeedbackCenter/><UpdateCenter runningBuild={BUILD_ID}/></body>
     </html>
   );
 }
