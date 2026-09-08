@@ -13,7 +13,8 @@
     "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
-    "db:migrate:user-sync": "node scripts/migrate-user-sync.mjs"
+    "db:migrate:user-sync": "node scripts/migrate-user-sync.mjs",
+    "prebuild": "node scripts/stamp-release.mjs"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.28.0",
@@ -63,5 +64,5 @@
     "wrangler": "4.92.0"
   },
   "type": "module",
-  "displayName": "Cockpit Marchés AI"
+  "displayName": "Cockpit March\u00e9s AI"
 }

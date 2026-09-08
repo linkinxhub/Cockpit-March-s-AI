@@ -1,10 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "npx next build && node scripts/verify-openai-analysis.mjs",
+  "buildCommand": "node scripts/stamp-release.mjs && npx next build && node scripts/verify-openai-analysis.mjs",
   "git": {
     "deploymentEnabled": {
-      "feat/flutter-mobile-sync": false
+      "feat/flutter-mobile-sync": false,
+      "feat/mobile-updates": false
     }
   }
 }

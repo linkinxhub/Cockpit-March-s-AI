@@ -406,6 +406,28 @@ export default function Home() {
     [scanning, setScanning] = useState(true),
     [updated, setUpdated] = useState("");
   const scanRequest = useRef(0);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('cockpit-update-context');
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      sessionStorage.removeItem('cockpit-update-context');
+      const row = seed.find(item => item.key === saved.asset);
+      if (row) setActive(row);
+      if (timeframes.some(([value]) => value === saved.period)) setTimeframe(saved.period);
+      if (nav.some(([, name]) => name === saved.view)) setView(saved.view);
+    } catch { /* Invalid or unavailable browser storage keeps the default context. */ }
+  }, []);
+  useEffect(() => {
+    const save = (event: Event) => {
+      try { sessionStorage.setItem('cockpit-update-context', JSON.stringify({asset:active.key,period:timeframe,view})); }
+      catch { event.preventDefault(); }
+    };
+    window.addEventListener('cockpit-before-update', save);
+    return () => window.removeEventListener('cockpit-before-update', save);
+  }, [active.key,timeframe,view]);
+
+
   const [autoRefresh, setAutoRefresh] = useState(true),
     [explanations, setExplanations] = useState(true),
     [alertPrice, setAlertPrice] = useState(""),
@@ -427,6 +449,8 @@ export default function Home() {
     [decisionEvents, setDecisionEvents] = useState<DecisionEvent[]>([]),
     [storageReady, setStorageReady] = useState(false),
     [workspaceReady, setWorkspaceReady] = useState(false);
+  const [decisionHistory, setDecisionHistory] = useState<{ contextKey: string; row: Row } | null>(null);
+  const decisionHistoryKey = [active.key, timeframe, analysisRevision].join("|");
   const decisionSnapshot = useRef<Record<string, string>>({});
   const [news, setNews] = useState<Record<string, News[]>>({}),
     [newsUpdated, setNewsUpdated] = useState(""),
@@ -585,6 +609,7 @@ export default function Home() {
             return { ...p, ema };
           }),
         );
+        if (d.analysis?.key === active.key) setDecisionHistory({ contextKey: decisionHistoryKey, row: d.analysis });
         if (d.analysis)
           setActive((current) =>
             current.key === d.analysis.key
@@ -1413,6 +1438,15 @@ export default function Home() {
   const visibleOpenAiError = openAiError || (aiAllowed && openAiConfigured === false ? "SERVICE_UNAVAILABLE" : "");
   const aiDataLoading = chartLoading || comparisonLoading || bigdataLoading;
   const aiButtonDisabled = openAiLoading || (aiAllowed && (active.unavailable || aiDataLoading || Boolean(historyError)));
+  // Keep the selected period's technical snapshot separate from scanner rows.
+  const decisionTechnical = decisionHistory?.contextKey === decisionHistoryKey && !chartLoading && !historyError && !active.unavailable
+    ? decisionHistory.row : null;
+  const decisionAi = decisionTechnical && !openAiLoading && !aiDataLoading && !visibleOpenAiError ? openAiAnalysis : null;
+  const decisionValue = decisionAi?.decision ?? decisionTechnical?.decision ?? null;
+  const decisionConfidenceRaw = decisionAi?.confidence ?? decisionTechnical?.confidence;
+  const decisionConfidence = typeof decisionConfidenceRaw === "number" && Number.isFinite(decisionConfidenceRaw)
+    ? Math.max(0, Math.min(100, decisionConfidenceRaw)) : null;
+  const decisionColor = decisionValue === "ACHETER" ? "#2edb99" : decisionValue === "VENDRE" ? "#ff5f53" : "#f3ad22";
   const forecastChartData = forecasts.map((f) => ({
     period: timeframes.find(([key]) => key === f.period)?.[1] || f.period,
     range: f.low !== null && f.high !== null ? [f.low, f.high] : null,
@@ -2329,45 +2363,50 @@ export default function Home() {
                   </div>
                 )}
               </section>
-              <section className="decision" data-guide="decision">
+              <section className="decision" data-guide="decision" aria-busy={chartLoading || openAiLoading}>
                 <div className="muted">
-                  Décision IA · période {timeframeLabel}
+                  {decisionAi ? "Synthèse IA" : "Lecture technique"} · {active.symbol} · {timeframeLabel}
                 </div>
-                <div className={"verdict " + tone(active.decision)}>
+                <div className={"verdict " + (decisionValue ? tone(decisionValue) : "wait")}>
                   <Gauge />
-                  <b>{active.unavailable ? "INDISPONIBLE" : active.decision}</b>
+                  <b>{decisionValue ?? (chartLoading ? "ACTUALISATION…" : "INDISPONIBLE")}</b>
                 </div>
-                <p>Confiance sur {timeframeLabel}</p>
+                <p>{decisionAi ? "Confiance d’alignement IA" : "Confiance technique"} · {timeframeLabel}</p>
                 <div className="confidence">
-                  <strong>
-                    {active.confidence === null ? "—" : active.confidence + "%"}
-                  </strong>
-                  <span>
-                    <i style={{ width: (active.confidence ?? 0) + "%" }} />
-                  </span>
+                  <strong>{decisionConfidence === null ? "—" : decisionConfidence + "%"}</strong>
+                  <span><i style={{ width: (decisionConfidence ?? 0) + "%", background: decisionColor }} /></span>
                 </div>
+                <small className="muted">Ce score n’est pas une probabilité de gain.</small>
                 <hr />
-                <h3>Lecture technique recalculée</h3>
+                <h3>{decisionAi ? "Pourquoi cette orientation ?" : openAiLoading ? "Analyse IA en cours…" : "Synthèse IA en attente"}</h3>
                 {explanations && (
-                  <p>
-                    {active.unavailable
-                      ? "Le fournisseur ne répond pas. Aucun signal n’est inventé."
-                      : active.decision === "ACHETER"
-                        ? "La tendance et le momentum convergent sur la période sélectionnée. Une entrée fractionnée reste plus prudente."
-                        : active.decision === "VENDRE"
-                          ? "La structure technique s’affaiblit sur la période sélectionnée. La protection du capital reste prioritaire."
-                          : "Les signaux de la période restent partagés. Attendre une confirmation améliore le rapport risque/rendement."}
-                  </p>
+                  <p>{decisionAi
+                    ? decisionAi.summary
+                    : !decisionTechnical
+                      ? "Les données de cet actif et de cette période doivent être disponibles avant d’afficher une orientation."
+                      : openAiLoading
+                        ? "Le signal technique reste affiché pendant le croisement des données par OpenAI."
+                        : "Cette orientation provient des indicateurs techniques. Elle ne constitue pas une conclusion OpenAI."}</p>
+                )}
+                {visibleOpenAiError && <p role="status">{analysisErrorMessage(visibleOpenAiError)}</p>}
+                {decisionAi && decisionAi.decision !== decisionTechnical?.decision && (
+                  <p>Lectures différentes : le signal technique indique {decisionTechnical?.decision}. La synthèse IA intègre aussi le contexte disponible ; cette divergence invite à examiner les arguments.</p>
+                )}
+                {decisionAi && explanations && (
+                  <>
+                    <h3>Condition d’invalidation</h3>
+                    <p>{decisionAi.invalidation}</p>
+                    {decisionAi.risks.length > 0 && <><h3>Risques identifiés par l’IA</h3>{decisionAi.risks.slice(0, 2).map((risk, i) => <p key={i}>{risk}</p>)}</>}
+                  </>
                 )}
                 <div className="facts">
-                  <span>
-                    RSI {timeframeLabel}
-                    <b>{active.rsi === null ? "—" : active.rsi.toFixed(1)}</b>
-                  </span>
-                  <span>
-                    Risque<b>{active.risk}</b>
-                  </span>
+                  <span>RSI technique · {timeframeLabel}<b>{typeof decisionTechnical?.rsi === "number" && Number.isFinite(decisionTechnical.rsi) ? decisionTechnical.rsi.toFixed(1) : "—"}</b></span>
+                  <span>Risque technique<b>{decisionTechnical?.risk ?? "—"}</b></span>
                 </div>
+                <p className="muted">{decisionAi ? "Source : " + decisionAi.model : "Source : indicateurs de la période sélectionnée."} La décision finale vous appartient.</p>
+                <button type="button" onClick={() => { openView("Prévisions"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                  Examiner l’analyse détaillée <ExternalLink size={14} />
+                </button>
               </section>
             </div>
             <section className="metrics">
