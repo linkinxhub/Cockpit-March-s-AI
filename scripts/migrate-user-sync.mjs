@@ -22,6 +22,7 @@ const files = [
   'db/migrations/0004_decision_notes.sql',
   'db/migrations/0005_user_workspace_state.sql',
   'db/migrations/0006_auth_rbac_subscriptions.sql',
+  'db/migrations/0007_feedback.sql',
 ];
 
 const sql = neon(connectionString);
