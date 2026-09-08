@@ -406,6 +406,28 @@ export default function Home() {
     [scanning, setScanning] = useState(true),
     [updated, setUpdated] = useState("");
   const scanRequest = useRef(0);
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('cockpit-update-context');
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      sessionStorage.removeItem('cockpit-update-context');
+      const row = seed.find(item => item.key === saved.asset);
+      if (row) setActive(row);
+      if (timeframes.some(([value]) => value === saved.period)) setTimeframe(saved.period);
+      if (nav.some(([, name]) => name === saved.view)) setView(saved.view);
+    } catch { /* Invalid or unavailable browser storage keeps the default context. */ }
+  }, []);
+  useEffect(() => {
+    const save = (event: Event) => {
+      try { sessionStorage.setItem('cockpit-update-context', JSON.stringify({asset:active.key,period:timeframe,view})); }
+      catch { event.preventDefault(); }
+    };
+    window.addEventListener('cockpit-before-update', save);
+    return () => window.removeEventListener('cockpit-before-update', save);
+  }, [active.key,timeframe,view]);
+
+
   const [autoRefresh, setAutoRefresh] = useState(true),
     [explanations, setExplanations] = useState(true),
     [alertPrice, setAlertPrice] = useState(""),

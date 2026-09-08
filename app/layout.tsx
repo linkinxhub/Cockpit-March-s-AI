@@ -1,3 +1,5 @@
+import UpdateCenter from "@/components/update-center";
+import { BUILD_ID } from "@/lib/build-version";
 import type { Metadata } from "next";
 import "./globals.css";
 import'./auth.css';
@@ -18,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{children}<UpdateCenter runningBuild={BUILD_ID}/></body>
     </html>
   );
 }
