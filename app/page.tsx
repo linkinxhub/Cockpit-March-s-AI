@@ -1,4 +1,5 @@
 "use client";
+import {useMarketRotation} from "@/lib/use-market-rotation";
 import OwnerSettingsShortcuts from '@/components/owner-settings-shortcuts';
 import ChartInsight from "@/components/chart-insight";
 import AIAllowance from "@/components/ai-allowance";
@@ -485,6 +486,7 @@ export default function Home() {
   const [currentNow, setCurrentNow] = useState(() => new Date());
   const [inlineForecastOpen, setInlineForecastOpen] = useState(false);
   const [headlineCategory, setHeadlineCategory] = useState("Indices");
+  const marketRotation=useMarketRotation(headlineCategory,setHeadlineCategory);
   const [assetSearchOpen, setAssetSearchOpen] = useState(false);
   const assetSearchRef = useRef<HTMLDivElement>(null);
   const locale = { fr: "fr-FR", en: "en-US", de: "de-DE", nl: "nl-NL" }[
@@ -2183,7 +2185,7 @@ export default function Home() {
                   </span>
                 </div>
               )}
-              <div className="headlineAssets" aria-label="Accès rapide aux actifs">
+              <div ref={marketRotation.container} className="headlineAssets" aria-label="Accès rapide aux actifs">
                 <div className="headlineAssetKinds">
                   {(["Indices", "Crypto", "Forex", "Métaux", "Baromètres"] as const).map((category) => (
                     <button key={category} className={headlineCategory === category ? "on" : ""} onClick={() => setHeadlineCategory(category)}>
@@ -2192,7 +2194,8 @@ export default function Home() {
                   ))}
                   <button className="all" onClick={() => setAssetSearchOpen(true)}>Tous ({rows.length})</button>
                 </div>
-                <div className="headlineAssetRail">
+                <button type="button" className="headlineRotation" aria-pressed={marketRotation.paused} onClick={()=>marketRotation.setPaused(v=>!v)}>{marketRotation.paused?({fr:'▶ Reprendre',en:'▶ Resume',de:'▶ Fortsetzen',nl:'▶ Hervatten'}[language]):({fr:'Ⅱ Pause',en:'Ⅱ Pause',de:'Ⅱ Pause',nl:'Ⅱ Pauze'}[language])}</button>
+                <div ref={marketRotation.rail} className="headlineAssetRail">
                   {rows.filter((row) => row.kind === headlineCategory).map((row) => (
                     <button key={row.key} className={active.key === row.key ? "active" : ""} onClick={() => { setActive(row); setView("Cockpit"); }} title={`${row.symbol} · ${row.name}`}>
                       <b>{row.symbol}</b>
