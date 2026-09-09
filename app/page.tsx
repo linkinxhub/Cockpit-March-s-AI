@@ -1,4 +1,6 @@
 "use client";
+import {discoveryAssets,BASIC_INDICATORS,DISCOVERY_PERIODS} from "@/lib/market-pack-policy";
+import MarketPackNotice from "@/components/market-pack-notice";
 import {useMarketRotation} from "@/lib/use-market-rotation";
 import OwnerSettingsShortcuts from '@/components/owner-settings-shortcuts';
 import ChartInsight from "@/components/chart-insight";
@@ -393,7 +395,7 @@ function IchimokuTooltip({ active, payload, label, locale }: { active?:boolean; 
 }
 
 export default function Home() {
-  const [rows, setRows] = useState<Row[]>(seed),
+  const [rows, setRows] = useState<Row[]>(discoveryAssets(seed)),
     [active, setActive] = useState<Row>(seed[0]),
     [view, setView] = useState("Cockpit"),
     [kind, setKind] = useState("Tous"),
@@ -486,6 +488,7 @@ export default function Home() {
   const [currentNow, setCurrentNow] = useState(() => new Date());
   const [inlineForecastOpen, setInlineForecastOpen] = useState(false);
   const [headlineCategory, setHeadlineCategory] = useState("Indices");
+  const [marketAccess,setMarketAccess]=useState({allAssets:false,advanced:false});
   const marketRotation=useMarketRotation(headlineCategory,setHeadlineCategory);
   const [assetSearchOpen, setAssetSearchOpen] = useState(false);
   const assetSearchRef = useRef<HTMLDivElement>(null);
@@ -520,6 +523,8 @@ export default function Home() {
       decisionSnapshot.current = Object.fromEntries(d.rows.map((row: Row) => [row.key, row.decision]));
       if (changes.length) setDecisionEvents((events) => [...changes, ...events].slice(0, 100));
       setRows(d.rows);
+      if(!d.marketAccess?.allAssets)setTimeframe(current=>DISCOVERY_PERIODS.includes(current)?current:"1d");
+      setMarketAccess({allAssets:d.marketAccess?.allAssets===true,advanced:d.marketAccess?.advanced===true});
       setActive(
         (a) =>
           d.rows.find((x: Row) => x.key === a.key) ||
@@ -635,6 +640,7 @@ export default function Home() {
     return () => controller.abort();
   }, [active.key, timeframe, analysisRevision]);
   useEffect(() => {
+    if(!marketAccess.allAssets){setTimeframeComparisons([]);setComparisonLoading(false);return;}
     const controller = new AbortController();
     setComparisonLoading(true);
     setTimeframeComparisons([]);
@@ -649,7 +655,7 @@ export default function Home() {
         if (!controller.signal.aborted) setComparisonLoading(false);
       });
     return () => controller.abort();
-  }, [active.key, analysisRevision]);
+  }, [active.key, analysisRevision,marketAccess.allAssets]);
   const formatChartTime = (value: number) => {
     const d = new Date(value);
     return timeframe === "1y" || timeframe === "6mo" || timeframe === "1mo"
@@ -912,6 +918,7 @@ export default function Home() {
     );
   };
   const selectTimeframe = (period: Timeframe) => {
+    if(!marketAccess.allAssets&&!DISCOVERY_PERIODS.includes(period))return;
     setTimeframe(period);
     window.setTimeout(
       () =>
@@ -1339,9 +1346,10 @@ export default function Home() {
         : wait("Supports / Résistances", `${number(active.support,5)} / ${number(active.resistance,5)}`, "Zone active", `Acheter exige une cassure confirmée au-dessus de ${number(active.resistance,5)} ; vendre exige une rupture confirmée sous ${number(active.support,5)}.`),
     ];
   }, [active, technicalStudy]);
-  const indicatorBuyCount = indicatorDecisions.filter((item) => item.decision === "ACHETER").length,
-    indicatorSellCount = indicatorDecisions.filter((item) => item.decision === "VENDRE").length,
-    indicatorWaitCount = indicatorDecisions.filter((item) => item.decision === "ATTENDRE").length,
+  const includedIndicators=marketAccess.advanced?indicatorDecisions:indicatorDecisions.filter(item=>BASIC_INDICATORS.includes(item.name));
+  const indicatorBuyCount = includedIndicators.filter((item) => item.decision === "ACHETER").length,
+    indicatorSellCount = includedIndicators.filter((item) => item.decision === "VENDRE").length,
+    indicatorWaitCount = includedIndicators.filter((item) => item.decision === "ATTENDRE").length,
     indicatorConsensus = indicatorBuyCount > indicatorSellCount && indicatorBuyCount > indicatorWaitCount ? "ACHETER" : indicatorSellCount > indicatorBuyCount && indicatorSellCount > indicatorWaitCount ? "VENDRE" : "ATTENDRE";
   const opposingHorizons = timeframeComparisons.filter(
       (item) => item.decision !== active.decision && item.decision !== "ATTENDRE",
@@ -1762,6 +1770,7 @@ export default function Home() {
 
   const MarketTable = () => (
     <div className="table marketTable">
+      <MarketPackNotice full={marketAccess.allAssets}/>
       <div className="tr th">
         <span>Actif</span>
         <span>Classe</span>
@@ -2282,7 +2291,7 @@ export default function Home() {
                     <button
                       key={key}
                       className={timeframe === key ? "on" : ""}
-                      onClick={() => selectTimeframe(key)}
+                      disabled={!marketAccess.allAssets&&!DISCOVERY_PERIODS.includes(key)} title={!marketAccess.allAssets&&!DISCOVERY_PERIODS.includes(key)?"Pro / Expert":undefined} onClick={() => selectTimeframe(key)}
                       aria-pressed={timeframe === key}
                     >
                       {label}
@@ -3045,6 +3054,7 @@ export default function Home() {
 
         {view === "Indicateurs" && (
           <section className="module technicalIndicators indicatorCenter" data-guide="technical-indicators">
+            <MarketPackNotice full={marketAccess.advanced}/>
             <div className="technicalHead">
               <div>
                 <p>CENTRE DES INDICATEURS</p>
@@ -3059,7 +3069,7 @@ export default function Home() {
                   {rows.map((row) => <option key={row.key} value={row.key}>{row.symbol} · {row.kind}</option>)}
                 </select>
               </label>
-              <div><span>Période active</span><div className="indicatorPeriods">{timeframes.map(([period,label]) => <button key={period} className={timeframe === period ? "active" : ""} onClick={() => selectTimeframe(period)}>{label}</button>)}</div></div>
+              <div><span>Période active</span><div className="indicatorPeriods">{timeframes.map(([period,label]) => <button key={period} className={timeframe === period ? "active" : ""} disabled={!marketAccess.allAssets&&!DISCOVERY_PERIODS.includes(period)} title={!marketAccess.allAssets&&!DISCOVERY_PERIODS.includes(period)?"Pro / Expert":undefined} onClick={() => selectTimeframe(period)}>{label}{!marketAccess.allAssets&&!DISCOVERY_PERIODS.includes(period)?" 🔒":""}</button>)}</div></div>
             </div>
             <div className="indicatorConsensus">
               <span><b className="buy">{indicatorBuyCount}</b><small>ACHETER</small></span>
@@ -3069,9 +3079,9 @@ export default function Home() {
             </div>
             <div className="indicatorDecisionTable" role="table" aria-label="Décisions des indicateurs techniques">
               <div className="indicatorDecisionHeader" role="row"><span>Indicateur</span><span>Valeur</span><span>Lecture actuelle</span><span>Décision · {timeframeLabel}</span><span>Pourquoi</span></div>
-              {indicatorDecisions.map((item,index) => (
-                <article key={item.name} className={index === 0 ? "featured" : ""} role="row">
-                  <span data-label="Indicateur"><b>{item.name}</b>{index === 0 && <small>PREUVE PRINCIPALE</small>}</span>
+              {includedIndicators.map((item,index) => (
+                <article key={item.name} className={marketAccess.advanced && index === 0 ? "featured" : ""} role="row">
+                  <span data-label="Indicateur"><b>{item.name}</b>{marketAccess.advanced && index === 0 && <small>PREUVE PRINCIPALE</small>}</span>
                   <span data-label="Valeur">{item.value}</span>
                   <span data-label="Lecture">{item.reading}</span>
                   <span data-label="Décision"><strong className={tone(item.decision)}>{item.decision}</strong></span>
@@ -3079,7 +3089,7 @@ export default function Home() {
                 </article>
               ))}
             </div>
-            {chartLoading ? (
+            {!marketAccess.advanced ? <MarketPackNotice locked/> : chartLoading ? (
               <div className="indicatorEmpty indicatorLoading" role="status">Chargement de l’historique technique…</div>
             ) : historyError ? (
               <div className="indicatorEmpty indicatorError" role="alert">
@@ -3114,7 +3124,7 @@ export default function Home() {
               <b>Historique trop court pour Ichimoku</b>
               <span>Au moins 52 observations valides sont nécessaires. Choisissez une période compatible pour afficher le graphique sans inventer de valeurs.</span>
               <div className="compatiblePeriods">
-                {timeframes.filter(([period]) => ["1h","1d","1w","1mo","6mo","1y"].includes(period)).map(([period,label]) => <button type="button" key={period} onClick={() => selectTimeframe(period)}>{label}</button>)}
+                {timeframes.filter(([period]) => ["1h","1d","1w","1mo","6mo","1y"].includes(period)).map(([period,label]) => <button type="button" key={period} disabled={!marketAccess.allAssets&&!DISCOVERY_PERIODS.includes(period)} title={!marketAccess.allAssets&&!DISCOVERY_PERIODS.includes(period)?"Pro / Expert":undefined} onClick={() => selectTimeframe(period)}>{label}{!marketAccess.allAssets&&!DISCOVERY_PERIODS.includes(period)?" 🔒":""}</button>)}
               </div>
             </div>}
           </section>
