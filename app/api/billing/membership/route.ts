@@ -1,0 +1,4 @@
+import {authorizeApiRequest} from '@/lib/access-control';
+import {getBillingAccount} from '@/lib/plan-billing-store';
+export const dynamic='force-dynamic';
+export async function GET(){try{const a=await authorizeApiRequest({allowSuspended:true});if(a.response){if(a.response.status===401)return Response.json({membership:null},{headers:{'Cache-Control':'private, no-store'}});return a.response;}const m=a.context.membership,b=m.accountStatus==='SUSPENDED'?null:await getBillingAccount();return Response.json({membership:{plan:m.plan,status:m.subscriptionStatus,suspended:m.accountStatus==='SUSPENDED',hasSubscription:!!b?.subscriptionId,hasCustomer:!!b?.customerId}},{headers:{'Cache-Control':'private, no-store'}});}catch{return Response.json({error:'unavailable'},{status:503,headers:{'Cache-Control':'private, no-store'}});}}
