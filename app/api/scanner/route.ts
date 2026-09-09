@@ -1,3 +1,4 @@
+import {discoveryAssets} from '@/lib/market-pack-policy';
 import { assets, history, snapshot, unavailableRow } from '@/lib/market-data';
 import { authorizeApiRequest } from '@/lib/access-control';
 import { canAccess } from '@/lib/entitlements';
@@ -6,7 +7,7 @@ import { quoteIsStale } from '@/lib/analysis-context';
 export async function GET() {
   const auth = await authorizeApiRequest();
   if (auth.response) return auth.response;
-  const visibleAssets = canAccess('ALL_ASSETS', auth.context.membership) ? assets : assets.slice(0, 12);
+  const visibleAssets = canAccess('ALL_ASSETS', auth.context.membership) ? assets : discoveryAssets(assets);
   const settled = await Promise.allSettled(visibleAssets.map(async asset => {
     const points = await history(asset.key);
     const dataUpdatedAt = points.at(-1)?.t ?? 0;
@@ -20,6 +21,7 @@ export async function GET() {
     rows: settled.map((result, index) => result.status === 'fulfilled' ? result.value : unavailableRow(visibleAssets[index])),
     limited: visibleAssets.length < assets.length,
     totalAssets: assets.length,
+    marketAccess:{allAssets:canAccess('ALL_ASSETS',auth.context.membership),advanced:canAccess('ICHIMOKU_ADVANCED',auth.context.membership)},
     updatedAt: new Date().toISOString(),
   }, { headers: { 'Cache-Control': 'private, max-age=120' } });
 }
