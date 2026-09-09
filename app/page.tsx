@@ -1,5 +1,6 @@
 "use client";
 import OwnerSettingsShortcuts from '@/components/owner-settings-shortcuts';
+import ChartInsight from "@/components/chart-insight";
 import AIAllowance from "@/components/ai-allowance";
 import "./modules.css";
 import "./news.css";
@@ -2367,6 +2368,7 @@ export default function Home() {
                     Historique indisponible pour cette période
                   </div>
                 )}
+                <ChartInsight analysis={decisionAi} busy={openAiLoading||aiDataLoading} error={Boolean(visibleOpenAiError||historyError)} symbol={active.symbol} period={timeframeLabel}/>
               </section>
               <section className="decision" data-guide="decision" aria-busy={chartLoading || openAiLoading}>
                 <div className="muted">
