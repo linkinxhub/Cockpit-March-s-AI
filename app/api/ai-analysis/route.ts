@@ -1,3 +1,4 @@
+import {getAICredentials} from '@/lib/ai-settings';
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeFeatureApi } from "@/lib/access-control";
 import { consumeMonthlyUsage, UsageLimitError } from "@/lib/usage-store";
@@ -22,7 +23,7 @@ const analysisSchema = z.object({
 export async function GET() {
   const access = await authorizeFeatureApi("AI_INSTANT_ANALYSIS");
   if (access.response) return access.response;
-  return NextResponse.json({ configured: Boolean(process.env.OPENAI_API_KEY?.trim()) }, { headers: { "Cache-Control": "no-store" } });
+  try{const config=await getAICredentials();return NextResponse.json({configured:!!config.apiKey},{headers:{"Cache-Control":"no-store"}});}catch{return NextResponse.json({code:"AI_SETTINGS_UNAVAILABLE"},{status:503});}
 }
 
 function limited(ip: string) {
@@ -53,7 +54,8 @@ function extractText(data: any) {
 export async function POST(request: NextRequest) {
   const access = await authorizeFeatureApi("AI_INSTANT_ANALYSIS");
   if (access.response) return access.response;
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  let config;try{config=await getAICredentials();}catch{return NextResponse.json({code:"AI_SETTINGS_UNAVAILABLE"},{status:503});}
+  const apiKey=config.apiKey;
   if (!apiKey)
     return NextResponse.json({ code: "OPENAI_NOT_CONFIGURED" }, { status: 503 });
 
@@ -133,7 +135,7 @@ export async function POST(request: NextRequest) {
       signal: AbortSignal.timeout(35_000),
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-5.6-luna",
+        model: config.model,
         store: false,
         instructions: `You are the educational market-analysis layer of Cockpit Marchés AI. Answer only in ${language}. Analyze only the supplied snapshot; never invent prices, news, government decisions, sources, or certainty. Reconcile technical indicators, the quantitative forecast, Bigdata context, and news freshness. The decision must be conditional and one of ACHETER, VENDRE, ATTENDRE. Confidence measures evidence alignment, not probability of profit. Give concise, concrete drivers and risks, an explicit invalidation condition, and state that trading can cause loss of capital and this is not personalized financial advice.`,
         input: `Analyze this current application snapshot as JSON:\n${JSON.stringify(marketContext)}`,
@@ -148,7 +150,7 @@ export async function POST(request: NextRequest) {
     const text = extractText(data);
     if (!text) throw new Error("empty");
     const analysis = analysisSchema.parse(JSON.parse(text));
-    return NextResponse.json({ analysis, generatedAt: new Date().toISOString(), model: data.model || process.env.OPENAI_MODEL || "gpt-5.6-luna" }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ analysis, generatedAt: new Date().toISOString(), model: data.model || config.model }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const timeout = error instanceof Error && error.name === "TimeoutError";
     return NextResponse.json({ code: timeout ? "OPENAI_TIMEOUT" : "OPENAI_ERROR" }, { status: timeout ? 504 : 502 });

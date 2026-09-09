@@ -4187,11 +4187,11 @@ export default function Home() {
                 <span>
                   <b>Assistant OpenAI</b>
                   <small>
-                    L’interface est préparée ; activation suspendue par
-                    l’autorisation du connecteur.
+                    {openAiConfigured === true ? "Configuration active pour l’analyse IA." : openAiConfigured === false ? "Clé OpenAI à configurer par le propriétaire." : "État disponible pour les comptes autorisés à l’analyse IA."}
+                    {" "}<a href="/admin/ai-settings">Configuration IA · Administration</a>
                   </small>
                 </span>
-                <i>En attente</i>
+                <i>{openAiConfigured === true ? "Configuré" : openAiConfigured === false ? "À configurer" : "À vérifier"}</i>
               </div>
               <div className="provider">
                 <ShieldCheck />
