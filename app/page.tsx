@@ -2280,8 +2280,8 @@ export default function Home() {
                           </linearGradient>
                         </defs>
                         <CartesianGrid stroke="#1e303c" vertical={false} />
-                        <XAxis dataKey="period" tick={{ fill: "#8397a3", fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <YAxis orientation="right" domain={["auto", "auto"]} tick={{ fill: "#8397a3", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="period" tick={{ fill: "#8397a3", fontSize: 12 }} axisLine={false} tickLine={false} />
+                        <YAxis orientation="right" domain={["auto", "auto"]} tick={{ fill: "#8397a3", fontSize: 12 }} axisLine={false} tickLine={false} />
                         <Tooltip
                           formatter={(value: any, name: string | number | undefined) => [
                             Array.isArray(value) ? value.map((v) => number(Number(v), 5)).join(" — ") : number(Number(value), 5),
@@ -2291,7 +2291,7 @@ export default function Home() {
                         />
                         <Area type="monotone" dataKey="range" stroke="#2edb99" strokeOpacity=".5" fill="url(#inlineForecastBand)" connectNulls />
                         <Line type="monotone" dataKey="center" stroke="#42e7ac" strokeWidth={3} dot={{ r: 4, fill: "#07131c", stroke: "#42e7ac", strokeWidth: 2 }} connectNulls />
-                        <ReferenceLine x={timeframeLabel} stroke="#ffb321" strokeDasharray="4 4" label={{ value: "Période active", fill: "#ffb321", fontSize: 9, position: "insideTopRight" }} />
+                        <ReferenceLine x={timeframeLabel} stroke="#ffb321" strokeDasharray="4 4" label={{ value: "Période active", fill: "#ffb321", fontSize: 12, position: "insideTopRight" }} />
                         <ReferenceLine y={active.support ?? undefined} stroke="#ff6b73" strokeDasharray="5 5" />
                         <ReferenceLine y={active.resistance ?? undefined} stroke="#f5b84b" strokeDasharray="5 5" />
                       </ComposedChart>
@@ -2330,14 +2330,14 @@ export default function Home() {
                         dataKey="t"
                         tickFormatter={formatChartTime}
                         minTickGap={38}
-                        tick={{ fill: "#71838f", fontSize: 9 }}
+                        tick={{ fill: "#71838f", fontSize: 12 }}
                         axisLine={false}
                         tickLine={false}
                       />
                       <YAxis
                         orientation="right"
                         domain={["auto", "auto"]}
-                        tick={{ fill: "#8293a0", fontSize: 11 }}
+                        tick={{ fill: "#8293a0", fontSize: 12 }}
                       />
                       <Tooltip
                         labelFormatter={(v) =>
@@ -3078,7 +3078,7 @@ export default function Home() {
                         {([['price','Prix'],['cloud','Nuage'],['lines','Lignes'],['signals','Signaux']] as const).map(([layer,label]) => <button type="button" key={layer} aria-pressed={ichimokuLayers[layer]} className={ichimokuLayers[layer] ? "active" : ""} onClick={() => setIchimokuLayers((current) => ({...current,[layer]:!current[layer]}))}>{label}</button>)}
                       </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={380}><ComposedChart data={technicalStudy.data} margin={{top:12,right:10,left:0,bottom:4}}><CartesianGrid stroke="#1e3039" vertical={false}/><XAxis dataKey="t" tickFormatter={formatChartTime} minTickGap={40} tick={{fill:"#728690",fontSize:9}} axisLine={false}/><YAxis orientation="right" domain={technicalStudy.yDomain} allowDataOverflow tick={{fill:"#82959f",fontSize:10}}/><Tooltip content={(props) => <IchimokuTooltip {...props} locale={locale}/>}/>{ichimokuLayers.price && <Area type="monotone" dataKey="price" stroke="#f3f7f8" fill="#dce8ec12" dot={false} strokeWidth={2.4} name={`${active.symbol} · prix`}/>} {ichimokuLayers.cloud && <><Area type="monotone" dataKey="spanA" stroke="#2edb99" fill="#2edb9926" connectNulls name="Senkou A"/><Area type="monotone" dataKey="spanB" stroke="#ff6972" fill="#ff697218" connectNulls name="Senkou B"/></>} {ichimokuLayers.lines && <><Line type="monotone" dataKey="tenkan" stroke="#38a8ff" dot={false} strokeWidth={1.5} connectNulls name="Tenkan 9"/><Line type="monotone" dataKey="kijun" stroke="#f3ad22" dot={false} strokeWidth={1.5} connectNulls name="Kijun 26"/><Line type="monotone" dataKey="chikou" stroke="#b989ff" dot={false} strokeWidth={1.2} strokeDasharray="4 3" connectNulls name="Chikou 26"/></>} {ichimokuLayers.signals && <><Line dataKey="buySignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Entrée achat"/><Line dataKey="sellSignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Entrée vente"/><Line dataKey="exitSignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Sortie"/></>}</ComposedChart></ResponsiveContainer>
+                    <ResponsiveContainer width="100%" height={380}><ComposedChart data={technicalStudy.data} margin={{top:12,right:10,left:0,bottom:4}}><CartesianGrid stroke="#1e3039" vertical={false}/><XAxis dataKey="t" tickFormatter={formatChartTime} minTickGap={40} tick={{fill:"#728690",fontSize:12}} axisLine={false}/><YAxis orientation="right" domain={technicalStudy.yDomain} allowDataOverflow tick={{fill:"#82959f",fontSize:12}}/><Tooltip content={(props) => <IchimokuTooltip {...props} locale={locale}/>}/>{ichimokuLayers.price && <Area type="monotone" dataKey="price" stroke="#f3f7f8" fill="#dce8ec12" dot={false} strokeWidth={2.4} name={`${active.symbol} · prix`}/>} {ichimokuLayers.cloud && <><Area type="monotone" dataKey="spanA" stroke="#2edb99" fill="#2edb9926" connectNulls name="Senkou A"/><Area type="monotone" dataKey="spanB" stroke="#ff6972" fill="#ff697218" connectNulls name="Senkou B"/></>} {ichimokuLayers.lines && <><Line type="monotone" dataKey="tenkan" stroke="#38a8ff" dot={false} strokeWidth={1.5} connectNulls name="Tenkan 9"/><Line type="monotone" dataKey="kijun" stroke="#f3ad22" dot={false} strokeWidth={1.5} connectNulls name="Kijun 26"/><Line type="monotone" dataKey="chikou" stroke="#b989ff" dot={false} strokeWidth={1.2} strokeDasharray="4 3" connectNulls name="Chikou 26"/></>} {ichimokuLayers.signals && <><Line dataKey="buySignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Entrée achat"/><Line dataKey="sellSignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Entrée vente"/><Line dataKey="exitSignalPrice" stroke="transparent" strokeWidth={0} dot={<HistoricalMarker/>} activeDot={false} connectNulls={false} isAnimationActive={false} name="Sortie"/></>}</ComposedChart></ResponsiveContainer>
                     <div className="ichimokuLegend"><span className="priceLine">{active.symbol} · prix réel</span><span className="tenkanLine">Tenkan 9</span><span className="kijunLine">Kijun 26</span><span className="chikouLine">Chikou 26</span><span className="spanALine">Senkou A</span><span className="spanBLine">Senkou B</span></div>
                   </div>
                   <div className="ichimokuExplanation"><h3>Pourquoi ce verdict ?</h3><p>Le prix est <b>{technicalStudy.cloudPosition} le nuage</b>. Le croisement Tenkan/Kijun est <b className={technicalStudy.cross === "haussier" ? "buy" : "sell"}>{technicalStudy.cross}</b> et le nuage projeté est <b className={technicalStudy.cloudDirection === "haussier" ? "buy" : "sell"}>{technicalStudy.cloudDirection}</b>.</p><p>La forme est un <b>{technicalStudy.shape}</b>, épais d’environ <b>{technicalStudy.cloudWidth.toFixed(2)} %</b> du cours. Un nuage épais forme une zone plus résistante ; un nuage comprimé augmente le risque de changement de régime.</p><div className="ichimokuFacts"><span>Tenkan-sen<b>{number(technicalStudy.tenkan,5)}</b><small>Équilibre rapide · 9 périodes</small></span><span>Kijun-sen<b>{number(technicalStudy.kijun,5)}</b><small>Équilibre de fond · 26 périodes</small></span><span>Senkou A / B<b>{number(technicalStudy.spanA,5)} / {number(technicalStudy.spanB,5)}</b><small>Limites du nuage projeté</small></span><span>Chikou théorique<b>{number(technicalStudy.chikou,5)}</b><small>Comparaison à 26 périodes</small></span></div><div className="ichimokuVerdict"><ShieldCheck/><p><b>Condition de validation :</b> {technicalStudy.bias === "HAUSSIER" ? "maintien du prix au-dessus du nuage et Tenkan au-dessus de Kijun." : technicalStudy.bias === "BAISSIER" ? "maintien du prix sous le nuage et Tenkan sous Kijun." : "attendre une sortie nette du nuage et un croisement cohérent."}</p></div></div>
@@ -3258,14 +3258,14 @@ export default function Home() {
                         <CartesianGrid stroke="#1e303c" vertical={false} />
                         <XAxis
                           dataKey="period"
-                          tick={{ fill: "#8397a3", fontSize: 11 }}
+                          tick={{ fill: "#8397a3", fontSize: 12 }}
                           axisLine={false}
                           tickLine={false}
                         />
                         <YAxis
                           orientation="right"
                           domain={["auto", "auto"]}
-                          tick={{ fill: "#8397a3", fontSize: 10 }}
+                          tick={{ fill: "#8397a3", fontSize: 12 }}
                           axisLine={false}
                           tickLine={false}
                         />
@@ -3317,7 +3317,7 @@ export default function Home() {
                           label={{
                             value: "Support",
                             fill: "#ff848b",
-                            fontSize: 10,
+                            fontSize: 12,
                             position: "insideBottomLeft",
                           }}
                         />
@@ -3328,7 +3328,7 @@ export default function Home() {
                           label={{
                             value: "Résistance",
                             fill: "#f3bd54",
-                            fontSize: 10,
+                            fontSize: 12,
                             position: "insideTopLeft",
                           }}
                         />
