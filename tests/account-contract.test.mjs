@@ -17,7 +17,8 @@ test('first administrator bootstrap trusts stable server identity, never browser
 
 test('profile mutation trusts server identity and validates editable fields',()=>{
  assert.match(profileRoute,/authorizeApiRequest/);
- assert.match(profileRoute,/requireSameOrigin/);
+ assert.match(profileRoute,/readAccountJson/);
+ assert.match(fs.readFileSync('lib/account-request.ts','utf8'),/invalid_origin/);
  assert.match(profileRoute,/z\.object/);
  assert.match(profileRoute,/\.strict\(\)/);
  assert.doesNotMatch(profileRoute,/body\.data\.(role|plan|email)/);
