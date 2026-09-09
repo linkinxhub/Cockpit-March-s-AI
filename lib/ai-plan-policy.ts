@@ -1,0 +1,3 @@
+export const AI_MONTHLY_LIMITS={DISCOVERY:5,PRO:100,EXPERT:300} as const;
+export function aiPlanLimit(plan:string,status:string,role:string,accountStatus:string){if(accountStatus.toLowerCase()==='suspended')return 0;if(role.toLowerCase()==='admin')return null;const active=['active','trialing'].includes(status.toLowerCase());const tier=plan.toLowerCase();return !active?5:tier==='pro'?100:['expert','trader_plus'].includes(tier)?300:5;}
+export function aiMonth(now=Date.now()){const d=new Date(now);return{start:Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1),end:Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1)};}

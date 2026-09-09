@@ -1,7 +1,8 @@
+import {reserveAIAllowance,refundAIAllowance} from '@/lib/ai-allowance';
+import {AIQuotaError} from '@/lib/ai-allowance-types';
 import {getAICredentials} from '@/lib/ai-settings';
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeFeatureApi } from "@/lib/access-control";
-import { consumeMonthlyUsage, UsageLimitError } from "@/lib/usage-store";
 import { isLiveContext, isRecentTimestamp } from "@/lib/analysis-context";
 import { chartPeriods } from "@/lib/market-data";
 import { z } from "zod";
@@ -82,7 +83,6 @@ export async function POST(request: NextRequest) {
   if (currentBigdata && (!Array.isArray(currentBigdata.catalysts) || !Array.isArray(currentBigdata.risks) || currentBigdata.catalysts.some((c: unknown) => !c || typeof c !== "object")))
     return NextResponse.json({ code: "INVALID_REQUEST" }, { status: 400 });
 
-  try{await consumeMonthlyUsage("AI_INSTANT_ANALYSIS",access.context.membership)}catch(error){if(error instanceof UsageLimitError)return NextResponse.json({code:"USAGE_LIMIT_REACHED",feature:error.feature,used:error.used,limit:error.limit,resetAt:error.resetAt},{status:429});throw error}
 
   const marketContext = {
     locale,
@@ -129,7 +129,10 @@ export async function POST(request: NextRequest) {
     additionalProperties: false,
   };
 
+  let reservation:Awaited<ReturnType<typeof reserveAIAllowance>>=null;
+  let completed=false;
   try {
+    reservation=await reserveAIAllowance();
     const upstream = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       signal: AbortSignal.timeout(35_000),
@@ -137,6 +140,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         model: config.model,
         store: false,
+        max_output_tokens: 1800,
         instructions: `You are the educational market-analysis layer of Cockpit Marchés AI. Answer only in ${language}. Analyze only the supplied snapshot; never invent prices, news, government decisions, sources, or certainty. Reconcile technical indicators, the quantitative forecast, Bigdata context, and news freshness. The decision must be conditional and one of ACHETER, VENDRE, ATTENDRE. Confidence measures evidence alignment, not probability of profit. Give concise, concrete drivers and risks, an explicit invalidation condition, and state that trading can cause loss of capital and this is not personalized financial advice.`,
         input: `Analyze this current application snapshot as JSON:\n${JSON.stringify(marketContext)}`,
         text: { format: { type: "json_schema", name: "market_analysis", strict: true, schema } },
@@ -150,9 +154,13 @@ export async function POST(request: NextRequest) {
     const text = extractText(data);
     if (!text) throw new Error("empty");
     const analysis = analysisSchema.parse(JSON.parse(text));
+    completed=true;
     return NextResponse.json({ analysis, generatedAt: new Date().toISOString(), model: data.model || config.model }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if(error instanceof AIQuotaError)return NextResponse.json({code:'USAGE_LIMIT_REACHED',used:error.used,limit:error.limit,resetAt:error.resetAt},{status:429});
     const timeout = error instanceof Error && error.name === "TimeoutError";
     return NextResponse.json({ code: timeout ? "OPENAI_TIMEOUT" : "OPENAI_ERROR" }, { status: timeout ? 504 : 502 });
+  } finally {
+    if(reservation&&!completed){try{await refundAIAllowance(reservation);}catch{console.error('ai_quota_refund_failed');}}
   }
 }

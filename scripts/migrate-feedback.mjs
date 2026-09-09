@@ -8,5 +8,6 @@ if(process.env.VERCEL_ENV==='production'){
  const statements=readFileSync(new URL('../db/migrations/0007_feedback.sql',import.meta.url),'utf8').split(';').map(s=>s.trim()).filter(Boolean);
  for(const statement of statements)await sql.query(statement,[]);
  for(const statement of readFileSync(new URL('../db/migrations/0008_ai_settings.sql',import.meta.url),'utf8').split(';').map(s=>s.trim()).filter(Boolean))await sql.query(statement,[]);
- console.log('Feedback and AI settings schemas ready');
+ for(const statement of readFileSync(new URL('../db/migrations/0009_billing_events.sql',import.meta.url),'utf8').split(';').map(s=>s.trim()).filter(Boolean))await sql.query(statement,[]);
+ console.log('Application schemas ready');
 }
