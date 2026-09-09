@@ -7,5 +7,6 @@ if(process.env.VERCEL_ENV==='production'){
  const sql=neon(url);
  const statements=readFileSync(new URL('../db/migrations/0007_feedback.sql',import.meta.url),'utf8').split(';').map(s=>s.trim()).filter(Boolean);
  for(const statement of statements)await sql.query(statement,[]);
- console.log('Feedback schema ready');
+ for(const statement of readFileSync(new URL('../db/migrations/0008_ai_settings.sql',import.meta.url),'utf8').split(';').map(s=>s.trim()).filter(Boolean))await sql.query(statement,[]);
+ console.log('Feedback and AI settings schemas ready');
 }
