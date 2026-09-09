@@ -1,4 +1,5 @@
 "use client";
+import AccountInvoices from "@/components/account-invoices";
 import {useState} from 'react';
 import {ArrowUpRight,Check,ShieldCheck,UserRound,Sparkles,FlaskConical,Save,Mail} from 'lucide-react';
 import './account-details.css';
@@ -23,5 +24,5 @@ export default function AccountDetails({email,displayName,plan,status,portalAvai
  <section className="member-card member-plan"><div className="member-card-heading"><span className="member-icon"><Sparkles size={21}/></span><div><h2>{c.subscription}</h2><p>{extra[4]}</p></div><span className={'member-status '+(['active','trialing'].includes(normalized)?'is-active':'')}><span/>{label}</span></div><div className="member-plan-name">{planName}</div><div className="member-plan-line"/>
  {periodEnd!=null&&Number.isFinite(periodEnd)&&<p className="member-period">{cancelAtEnd?c.end:c.renew}<strong>{new Date(periodEnd).toLocaleDateString(lang,{timeZone:'UTC'})} (UTC)</strong></p>}
  <p className="member-test"><FlaskConical size={17}/>{c.test}</p>{portalAvailable?<form action="/api/billing/portal" method="post"><button className="member-button member-primary" type="submit">{c.portal}<ArrowUpRight size={18}/></button></form>:<p className="member-muted">{c.unavailable}</p>}<a className="member-button member-secondary" href="/pricing">{c.offers}<ArrowUpRight size={18}/></a>
- </section></div></section>;
+ </section></div><AccountInvoices/></section>;
 }
