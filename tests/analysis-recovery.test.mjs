@@ -13,10 +13,14 @@ const vite = await createServer({
     enforce: "pre",
     resolveId(id) {
       if (id === `${root}lib/access-control` || id.endsWith("/lib/access-control")) return "\0test-account";
+      if (id.endsWith("/lib/ai-settings")) return "\0test-settings";
+      if (id.endsWith("/lib/ai-allowance")) return "\0test-allowance";
       if (id.endsWith("/lib/usage-store")) return "\0test-usage";
       if (id === "next/server") return "\0test-response";
     },
     load(id) {
+      if (id === "\0test-settings") return "export async function getAICredentials(){return {apiKey:process.env.OPENAI_API_KEY,model:\"test-model\"};}";
+      if (id === "\0test-allowance") return "export async function reserveAIAllowance(){globalThis.__analysisUsageCalls++;return {id:\"test\"};} export async function refundAIAllowance(){globalThis.__analysisRefunds++;}";
       if (id === "\0test-account") return "export async function authorizeFeatureApi() { return globalThis.__analysisTestAccess; }";
       if (id === "\0test-usage") return "export class UsageLimitError extends Error {} export async function consumeMonthlyUsage() { globalThis.__analysisUsageCalls++; }";
       if (id === "\0test-response") return "export const NextResponse = Response;";
@@ -43,7 +47,7 @@ beforeEach(() => {
   process.env.OPENAI_API_KEY = "test-placeholder";
   globalThis.__analysisTestAccess = { context: { identity: { id: `test-user-${++user}` }, membership: { role: "EXPERT" } } };
   upstreamCalls = 0;
-  globalThis.__analysisUsageCalls = 0;
+  globalThis.__analysisUsageCalls = 0;globalThis.__analysisRefunds=0;
   globalThis.fetch = async () => { upstreamCalls++; throw new Error("Unexpected external request"); };
 });
 afterEach(() => {
@@ -115,6 +119,7 @@ test("provider timeout is a recoverable response", async () => {
   const response = await post(snapshot());
   assert.equal(response.status, 504);
   assert.equal((await response.json()).code, "OPENAI_TIMEOUT");
+  assert.equal(globalThis.__analysisRefunds,1);
 });
 
 test("all cryptocurrencies reject seven-hour-old quotes", () => {
