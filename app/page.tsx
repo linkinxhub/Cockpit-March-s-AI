@@ -1,4 +1,5 @@
 "use client";
+import AIAllowance from "@/components/ai-allowance";
 import "./modules.css";
 import "./news.css";
 import "./ribbon.css";
@@ -465,6 +466,7 @@ export default function Home() {
   const openAiLastKey = useRef("");
   const openAiPendingKey = useRef("");
   const openAiController = useRef<AbortController | null>(null);
+  const [autoAi,setAutoAi]=useState(false),[aiQuotaExhausted,setAiQuotaExhausted]=useState(false);
   const [openAiConfigured, setOpenAiConfigured] = useState<boolean | null>(null);
   const openAiContextKey = [active.key, timeframe, language, analysisRevision, active.last, active.decision, active.unavailable].join("|");
   const openAiAnalysis = openAiResult?.contextKey === openAiContextKey ? openAiResult : null;
@@ -1358,7 +1360,7 @@ export default function Home() {
   const marketSession = active.kind === "Indices" ? indexMarketStatus(active.key,currentNow) : null;
   const runOpenAiAnalysis = async (force = false, signal?: AbortSignal) => {
     if (!aiAllowed || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError) return;
-    if (!force && openAiConfigured !== true) return;
+    if (aiQuotaExhausted || (!force && (!autoAi || openAiConfigured !== true))) return;
     const analysisKey = [active.key, timeframe, language, analysisRevision, active.last,
       active.decision, selectedForecast.outlook, selectedForecast.reliability,
       bigdata?.updatedAt || "", newsUpdated].join("|");
@@ -1424,20 +1426,21 @@ export default function Home() {
       if (requestId === openAiRequest.current) {
         openAiPendingKey.current = "";
         setOpenAiLoading(false);
+        window.dispatchEvent(new Event("ai-usage-changed"));
       }
     }
   };
   useEffect(() => {
-    if (!["Cockpit", "Prévisions"].includes(view) || openAiConfigured !== true || !aiAllowed || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError) return;
+    if (!autoAi || aiQuotaExhausted || !["Cockpit", "Prévisions"].includes(view) || openAiConfigured !== true || !aiAllowed || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => void runOpenAiAnalysis(false, controller.signal), 1100);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [view, active.key, active.last, active.decision, timeframe, language, analysisRevision,
+  }, [autoAi, aiQuotaExhausted, view, active.key, active.last, active.decision, timeframe, language, analysisRevision,
     selectedForecast?.outlook, selectedForecast?.reliability, bigdata?.updatedAt,
     newsUpdated, chartLoading, comparisonLoading, bigdataLoading, historyError, aiAllowed, openAiConfigured]);
   const visibleOpenAiError = openAiError || (aiAllowed && openAiConfigured === false ? "SERVICE_UNAVAILABLE" : "");
   const aiDataLoading = chartLoading || comparisonLoading || bigdataLoading;
-  const aiButtonDisabled = openAiLoading || (aiAllowed && (active.unavailable || aiDataLoading || Boolean(historyError)));
+  const aiButtonDisabled = aiQuotaExhausted || openAiLoading || (aiAllowed && (active.unavailable || aiDataLoading || Boolean(historyError)));
   // Keep the selected period's technical snapshot separate from scanner rows.
   const decisionTechnical = decisionHistory?.contextKey === decisionHistoryKey && !chartLoading && !historyError && !active.unavailable
     ? decisionHistory.row : null;
@@ -2204,6 +2207,7 @@ export default function Home() {
               </div>
             </section>
             <section className="cockpitAiCard" aria-label="Analyse instantanée OpenAI">
+              <AIAllowance onAutomaticChange={setAutoAi} onExhaustedChange={setAiQuotaExhausted}/>
               <div className="cockpitAiCardTitle">
                 <span><Bot /><small>ANALYSE INSTANTANÉE OPENAI</small><b>{active.symbol} · {timeframeLabel}</b></span>
                 {openAiAnalysis && <strong className={openAiAnalysis.decision === "ACHETER" ? "buy" : openAiAnalysis.decision === "VENDRE" ? "sell" : "wait"}>{openAiAnalysis.decision}</strong>}
@@ -2213,12 +2217,12 @@ export default function Home() {
                   ? <p>OpenAI croise les indicateurs, les prévisions, Bigdata et les actualités…</p>
                   : openAiAnalysis
                     ? <><p>{openAiAnalysis.summary}</p><small>Confiance d’alignement : {openAiAnalysis.confidence}% · Analyse éducative, sans exécution d’ordre.</small></>
-                    : <><p>{aiAllowed ? "Lancez une lecture IA du contexte de marché actuellement affiché." : "L’analyse IA reste visible et peut être débloquée avec la formule Expert."}</p></>}
+                    : <><p>{aiAllowed ? "Lancez une lecture IA du contexte de marché actuellement affiché." : "Connectez-vous pour profiter de 5 analyses IA gratuites par mois."}</p></>}
                 {visibleOpenAiError && <small role="status">{analysisErrorMessage(visibleOpenAiError)}</small>}
               </div>
               <div className="cockpitAiCardActions">
                 <button onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : (window.location.href = "/account")} disabled={aiButtonDisabled}>
-                  <Activity />{openAiLoading ? "Analyse en cours…" : aiAllowed ? aiDataLoading ? "Chargement des données…" : openAiConfigured === false ? "Vérifier l’activation" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant" : "Découvrir Expert"}
+                  <Activity />{openAiLoading ? "Analyse en cours…" : aiAllowed ? aiDataLoading ? "Chargement des données…" : openAiConfigured === false ? "Vérifier l’activation" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant" : "Découvrir l’IA"}
                 </button>
                 <button className="secondary" onClick={() => { openView("Prévisions"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
                   Voir l’analyse détaillée <ExternalLink />

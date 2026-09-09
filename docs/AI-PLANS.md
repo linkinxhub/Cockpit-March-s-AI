@@ -1,0 +1,11 @@
+# IA incluse dans les packs
+
+Découverte : 5 analyses par mois. Pro : 100 analyses / 24 EUR par mois. Expert (Trader+ sur Sites) : 300 analyses / 49 EUR par mois. Pas d’option payante supplémentaire ni de dépassement automatique. La clé propriétaire sert à tous les comptes actifs selon leur pack ; elle n’est jamais partagée avec les utilisateurs.
+
+Compteurs persistants par utilisateur, mois civil UTC. Plafond atomique pour éviter les dépassements par requêtes simultanées. Réservation avant l’appel OpenAI ; restitution sur erreur du fournisseur ou réponse invalide. Un arrêt brutal du serveur peut laisser une réservation consommée. Les requêtes ont une réponse plafonnée à 1 800 tokens. Les analyses sont manuelles par défaut ; automatisation volontaire pour Pro/Expert et administrateurs. L’IA seule est suspendue à épuisement, avec date de renouvellement et lien vers les packs. Le changement de pack conserve la consommation du mois. Les comptes suspendus n’ont aucun accès. Les administrateurs actifs conservent l’accès de gestion sans quota.
+
+Les prix Stripe test existants sont conservés. La clé restreinte et le secret de webhook sont nécessaires. En production réelle, fournir les deux identifiants de prix réels et STRIPE_LIVE_ENABLED=true. Le compte Stripe accessible dans cette session est exclusivement en mode test : aucun paiement réel n’a été activé.
+
+Checkout et portail sont authentifiés et protégés contre les requêtes intersites. L’utilisateur et le produit sont déterminés côté serveur. Le retour success_url ne confère aucun droit. Le webhook vérifie la signature et relit l’abonnement Stripe ; seul un abonnement actif avec dernière facture payée et prix reconnu active le pack. Les événements d’un autre projet/hébergement sont ignorés ; un marqueur chronologique limite les régressions par événements anciens. Les échecs/cancellations ramènent les droits à Découverte, sans suppression des données utilisateur. Les attributions manuelles de packs par l’administrateur restent possibles.
+
+Chaque site conserve ses utilisateurs, paiements et quotas propres. La TVA doit être configurée selon les immatriculations du vendeur avant la commercialisation ; Stripe Tax n’est pas activé implicitement. La rentabilité des quotas doit être suivie selon le modèle OpenAI choisi et sa consommation réelle ; aucune rentabilité garantie.

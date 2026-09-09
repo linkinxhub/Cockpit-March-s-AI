@@ -1,0 +1,8 @@
+import 'server-only';
+import {neon} from '@neondatabase/serverless';
+import {authorizeApiRequest} from './access-control';
+import type {BillingState} from './plan-billing-types';
+export const billingHost:string='vercel';
+function db(){const url=process.env.DATABASE_URL||process.env.POSTGRES_URL||process.env.NEON_DATABASE_URL||process.env.NEON_POSTGRES_URL;if(!url)throw Error('storage');return neon(url);}
+export async function getBillingAccount(){const a=await authorizeApiRequest();if(a.response)return null;const sql=db(),rows=await sql`select stripe_customer_id,stripe_subscription_id,status from subscriptions where user_id=${a.context.membership.userId}`;return {id:a.context.membership.userId,email:a.context.identity.email,customerId:rows[0]?.stripe_customer_id as string|null,subscriptionId:rows[0]?.stripe_subscription_id as string|null,status:String(rows[0]?.status||'')};}
+export async function saveBillingState(s:BillingState){const sql=db(),plan=s.plan==='pro'?'PRO':s.plan==='expert'?'EXPERT':'DISCOVERY',status=s.status==='active'?'ACTIVE':s.status==='past_due'?'PAST_DUE':s.status==='canceled'?'CANCELED':'SUSPENDED';await sql`update subscriptions set plan=${plan},status=${status},stripe_customer_id=${s.customerId},stripe_subscription_id=${s.subscriptionId},stripe_price_id=${s.priceId},current_period_end=${s.currentPeriodEnd},cancel_at_period_end=${s.cancelAtPeriodEnd},billing_event_at=${s.eventAt},updated_at=${Date.now()} where user_id=${s.userId} and coalesce(billing_event_at,0)<=${s.eventAt} and (stripe_subscription_id is null or stripe_subscription_id=${s.subscriptionId} or status in ('CANCELED','SUSPENDED'))`;}
