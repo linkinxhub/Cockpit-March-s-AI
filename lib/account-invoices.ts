@@ -1,5 +1,6 @@
 import 'server-only';
-import {getBillingAccount} from './plan-billing-store';
+import {getBillingAccount,billingHost} from './plan-billing-store';
+import {historicalInvoices} from './invoice-history';
 import {billingConfig} from './plan-billing-config';
 import {stripeRequest} from './plan-billing-core';
 const headers={'Cache-Control':'private, no-store','Vary':'Cookie'};
@@ -15,6 +16,8 @@ export async function accountInvoices(request:Request){try{
  const result=await stripeRequest('invoices?'+query);if(!Array.isArray(result.data))throw Error();
  // Fail closed if upstream ever returns records outside the authenticated customer or mode.
  if(result.data.some((i:any)=>(typeof i.customer==='string'?i.customer:i.customer?.id)!==account.customerId||i.livemode!==config.live))throw Error();
- const invoices=result.data.map((i:any)=>({id:i.id,number:i.number||i.id,status:i.status,created:amount(i.created),paidAt:amount(i.status_transitions?.paid_at),currency:i.currency,total:amount(i.total),paid:amount(i.amount_paid),remaining:amount(i.amount_remaining),tax:Array.isArray(i.total_taxes)?i.total_taxes.reduce((s:number,t:any)=>s+(amount(t.amount)||0),0):null,discount:Array.isArray(i.total_discount_amounts)?i.total_discount_amounts.reduce((s:number,t:any)=>s+(amount(t.amount)||0),0):null,credit:amount(i.post_payment_credit_notes_amount),test:!i.livemode,url:stripeLink(i.hosted_invoice_url),pdf:stripeLink(i.invoice_pdf),moreLines:!!i.lines?.has_more,lines:(i.lines?.data||[]).slice(0,10).map((l:any)=>({description:String(l.description||'').slice(0,500),amount:amount(l.amount),quantity:amount(l.quantity),start:amount(l.period?.start),end:amount(l.period?.end)}))}));
- return Response.json({invoices,next:result.has_more&&invoices.length?invoices[invoices.length-1].id:null},{headers});
+ const older=cursor?[]:await historicalInvoices({id:account.id,customerId:account.customerId},billingHost,config.live,stripeRequest);
+ const combined=[...result.data,...older.filter((i:any)=>!result.data.some((current:any)=>current.id===i.id))].sort((a:any,b:any)=>b.created-a.created);
+ const invoices=combined.map((i:any)=>({id:i.id,number:i.number||i.id,status:i.status,created:amount(i.created),paidAt:amount(i.status_transitions?.paid_at),currency:i.currency,total:amount(i.total),paid:amount(i.amount_paid),remaining:amount(i.amount_remaining),tax:Array.isArray(i.total_taxes)?i.total_taxes.reduce((s:number,t:any)=>s+(amount(t.amount)||0),0):null,discount:Array.isArray(i.total_discount_amounts)?i.total_discount_amounts.reduce((s:number,t:any)=>s+(amount(t.amount)||0),0):null,credit:amount(i.post_payment_credit_notes_amount),test:!i.livemode,url:stripeLink(i.hosted_invoice_url),pdf:stripeLink(i.invoice_pdf),moreLines:!!i.lines?.has_more,lines:(i.lines?.data||[]).slice(0,10).map((l:any)=>({description:String(l.description||'').slice(0,500),amount:amount(l.amount),quantity:amount(l.quantity),start:amount(l.period?.start),end:amount(l.period?.end)}))}));
+ return Response.json({invoices,next:result.has_more&&result.data.length?result.data[result.data.length-1].id:null},{headers});
  }catch{return Response.json({error:'invoices_unavailable'},{status:503,headers});}}
