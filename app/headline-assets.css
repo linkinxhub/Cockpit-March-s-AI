@@ -9,3 +9,5 @@
 .headlineAssetRail b{font-size:.875rem}.headlineAssetRail small{font-size:.875rem}.headlineAssetRail small.off{color:#667b86}
 @media(max-width:980px){.headlineAssets{max-width:430px;margin:0 10px}.headlineAssetKinds button{padding:3px 4px}.headlineAssetRail button{min-width:62px}}
 @media(max-width:760px){.headline{flex-wrap:wrap;gap:9px}.headlineAssets{order:3;flex-basis:100%;max-width:none;margin:0}.headlineAssetKinds{overflow-x:auto}.headlineAssetKinds button{white-space:nowrap}.headlineAssetRail button{min-width:66px}}
+
+.headlineRotation{display:block;margin:0 0 6px auto;padding:3px 9px;border:1px solid #2c5147;border-radius:6px;background:#102920;color:#a8d6c2;font:inherit;font-size:.875rem;cursor:pointer}.headlineRotation:focus-visible{outline:2px solid #bafa70;outline-offset:2px}.headlineAssetRail{scroll-behavior:auto}.headlineAssetKinds{flex-wrap:wrap}
