@@ -81,6 +81,9 @@ import { translateText, type Lang } from "@/lib/i18n";
 import { assets as marketAssets } from "@/lib/market-data";
 import type { Feature } from "@/lib/entitlements";
 import { InteractiveGuide } from "./interactive-guide";
+import AnalysisJourney, { type JourneyAction } from "@/components/analysis-journey";
+import { latestComparableSnapshot, snapshotReady, type SnapshotEvidence } from "@/lib/analysis-journey";
+import { journeyCopy, periodLabel, readingLabel } from "@/lib/journey-copy";
 import { analysisErrorMessage, includeActiveTimeframe, isLiveContext, isRecentTimestamp } from "@/lib/analysis-context";
 
 type Row = {
@@ -100,6 +103,9 @@ type Row = {
   support: number | null;
   resistance: number | null;
   unavailable: boolean;
+  stale?: boolean;
+  dataUpdatedAt?: number | null;
+  source?: string;
 };
 type ChartPoint = { t: number; price: number; high?: number; low?: number; ema: number };
 type News = {
@@ -129,7 +135,7 @@ type TraderProfile = {
   riskPercent: number;
   dailyLoss: number;
 };
-type Passport = {
+type Passport = SnapshotEvidence & {
   id: number;
   symbol: string;
   kind: string;
@@ -620,7 +626,7 @@ export default function Home() {
             return { ...p, ema };
           }),
         );
-        if (d.analysis?.key === active.key) setDecisionHistory({ contextKey: decisionHistoryKey, row: d.analysis });
+        if (d.analysis?.key === active.key) setDecisionHistory({ contextKey: decisionHistoryKey, row: { ...d.analysis, dataUpdatedAt: d.analysis.dataUpdatedAt ?? d.points?.at(-1)?.t ?? null } });
         if (d.analysis)
           setActive((current) =>
             current.key === d.analysis.key
@@ -954,45 +960,27 @@ export default function Home() {
     }
   };
   const savePassport = () => {
-    const stop =
-        active.decision === "ACHETER"
-          ? active.support
-          : active.decision === "VENDRE"
-            ? active.resistance
-            : null,
-      riskDistance =
-        active.last !== null && stop !== null
-          ? Math.abs(active.last - stop)
-          : null,
-      positionSize =
-        riskDistance && riskDistance > 0
-          ? (profile.capital * (profile.riskPercent / 100)) / riskDistance
-          : null;
-    setPassports((p) =>
-      [
-        {
-          id: Date.now(),
-          symbol: active.symbol,
-          kind: active.kind,
-          period: timeframe,
-          decision: active.decision,
-          coherence: active.confidence,
-          price: active.last,
-          support: active.support,
-          resistance: active.resistance,
-          risk: active.risk,
-          alignment: `${alignedComparisons}/${timeframeComparisons.length}`,
-          dataQuality: active.unavailable ? "Indisponible" : "Complète",
-          createdAt: new Date().toLocaleString(locale),
-          positionSize,
-          reliability: selectedForecast?.reliability ?? null,
-          newsCount: news[active.key]?.length || 0,
-          aiModel: openAiAnalysis?.model || "Moteur quantitatif explicable",
-          evidence: `${updated || "Source marché"} · ${timeframeLabel}`,
-        },
-        ...p,
-      ].slice(0, 100),
-    );
+    if (!journeyAccess.passport) { window.location.href = "/pricing"; return; }
+    if (!journeyReady || !decisionTechnical || !decisionValue || decisionTechnical.key !== active.key) return;
+    const row = decisionTechnical;
+    const stop = decisionValue === "ACHETER" ? row.support : decisionValue === "VENDRE" ? row.resistance : null;
+    const distance = row.last !== null && stop !== null ? Math.abs(row.last - stop) : null;
+    const capturedAt = new Date().toISOString();
+    setPassports(previous => [{
+      id: Date.now(), symbol: active.symbol, kind: active.kind, period: timeframe,
+      decision: decisionValue, coherence: decisionConfidence, price: row.last,
+      support: row.support, resistance: row.resistance, risk: row.risk,
+      alignment: `${timeframeComparisons.filter(item => item.decision === decisionValue).length}/${timeframeComparisons.length}`,
+      dataQuality: "Complète", createdAt: capturedAt,
+      positionSize: distance && distance > 0 ? (profile.capital * profile.riskPercent / 100) / distance : null,
+      reliability: selectedForecast?.reliability ?? null, newsCount: news[active.key]?.length || 0,
+      aiModel: decisionAi?.model || "Moteur quantitatif explicable",
+      evidence: `${row.source || "Source marché"} · ${timeframeLabel}`,
+      sourceVersion: 2 as const, assetKey: active.key, engine: journeyEngine,
+      recordedAtIso: capturedAt, technicalDecision: row.decision,
+      summary: decisionAi?.summary?.slice(0, 500), invalidation: decisionAi?.invalidation?.slice(0, 300),
+      source: row.source, dataUpdatedAt: row.dataUpdatedAt ?? null,
+    }, ...previous].slice(0, 100));
     setView("Passeports");
   };
   const backtest = useMemo(() => {
@@ -1462,6 +1450,49 @@ export default function Home() {
   const decisionConfidence = typeof decisionConfidenceRaw === "number" && Number.isFinite(decisionConfidenceRaw)
     ? Math.max(0, Math.min(100, decisionConfidenceRaw)) : null;
   const decisionColor = decisionValue === "ACHETER" ? "#2edb99" : decisionValue === "VENDRE" ? "#ff5f53" : "#f3ad22";
+  const journeyAccess = {
+    compare: entitlements?.MULTI_TIMEFRAME?.allowed === true,
+    alert: entitlements?.ALERTS?.allowed === true,
+    journal: entitlements?.PAPER_TRADING?.allowed === true,
+    passport: entitlements?.DECISION_PASSPORTS?.allowed === true,
+  };
+  const journeyBusy = chartLoading || openAiLoading || scanning;
+  const journeyReady = snapshotReady(decisionTechnical, journeyBusy) && !active.stale;
+  const journeyEngine = decisionAi ? `ai:${decisionAi.model}:${language}` : "technical:v1";
+  const journeyPrevious = journeyAccess.passport && journeyReady
+    ? latestComparableSnapshot(passports, { assetKey: active.key, period: timeframe, engine: journeyEngine }) : null;
+  const [journeyDestination, setJourneyDestination] = useState<{ selector: string } | null>(null);
+  useEffect(() => {
+    if (!journeyDestination) return;
+    const frame = requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(journeyDestination.selector);
+      if (!target) return;
+      const offset = Array.from(document.querySelectorAll<HTMLElement>('.usage-beacon, main>header, .forecastTopBanner')).reduce((height, node) => {
+        const position = getComputedStyle(node).position;
+        return height + ((position === "sticky" || position === "fixed") ? node.getBoundingClientRect().height : 0);
+      }, 16);
+      if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+      target.focus({ preventScroll: true });
+      window.scrollTo({ top: Math.max(0, window.scrollY + target.getBoundingClientRect().top - offset), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [journeyDestination, view]);
+  const onJourneyAction = (action: JourneyAction) => {
+    const featureAllowed = action === "alert" ? journeyAccess.alert : action === "journal" ? journeyAccess.journal : ["save", "history"].includes(action) ? journeyAccess.passport : action === "comparison" ? journeyAccess.compare : true;
+    if (!featureAllowed) { window.location.href = "/pricing"; return; }
+    if (action === "favorite") { void toggleFavorite(active.key); return; }
+    if (action === "refresh") { setAnalysisRevision(value => value + 1); void scan(); return; }
+    if (action === "save") { savePassport(); setJourneyDestination({ selector: '[data-guide="passports"]' }); return; }
+    if (action === "journal") {
+      if (!journeyReady) return;
+      const c = journeyCopy[language];
+      const draft = `${c.journalTitle} · ${active.symbol} · ${periodLabel(timeframe, language)} · ${new Date().toISOString()}\n${readingLabel(decisionValue, language)}\n${c.source}: ${decisionTechnical?.source || c.unknown}\n\n${c.journalReason}: \n\n${c.journalInvalidation}: ${decisionAi?.invalidation || ""}\n\n${c.journalNext}: \n\n${c.journalChoice}`;
+      setNote(previous => previous.trim() ? previous : draft);
+    }
+    const destination = action === "journal" ? ["Journal", '[data-guide="journal"]'] : action === "alert" ? ["Alertes", '[data-guide="alerts"]'] : action === "history" ? ["Passeports", '[data-guide="passports"]'] : action === "news" ? ["Actualités", '[data-guide="news"]'] : ["Cockpit", action === "comparison" ? ".multiTimeframe" : '[data-guide="decision"]'];
+    setView(destination[0]);
+    setJourneyDestination({ selector: destination[1] });
+  };
   const forecastChartData = forecasts.map((f) => ({
     period: timeframes.find(([key]) => key === f.period)?.[1] || f.period,
     range: f.low !== null && f.high !== null ? [f.low, f.high] : null,
@@ -2491,6 +2522,12 @@ export default function Home() {
                 </button>
               ))}
             </section>
+            <AnalysisJourney language={language} symbol={active.symbol} period={timeframe}
+              decision={journeyReady ? decisionValue : null} busy={journeyBusy} ready={journeyReady}
+              stale={Boolean(active.stale || decisionTechnical?.stale)} source={decisionTechnical?.source}
+              dataUpdatedAt={decisionTechnical?.dataUpdatedAt} ai={Boolean(decisionAi)} summary={decisionAi?.summary} price={decisionTechnical?.last ?? null}
+              comparisons={timeframeComparisons} comparisonsBusy={comparisonLoading} previous={journeyPrevious}
+              favorite={favorites.includes(active.key)} access={journeyAccess} onAction={onJourneyAction} />
             <section className="multiTimeframe">
               <div className="mtfHead">
                 <div>
@@ -2644,7 +2681,7 @@ export default function Home() {
                   </small>
                 </span>
               </div>
-              <button onClick={savePassport}>
+              <button onClick={savePassport} disabled={!journeyReady || !journeyAccess.passport}>
                 <ClipboardCheck />
                 Enregistrer le passeport
               </button>
@@ -3852,8 +3889,9 @@ export default function Home() {
                         <b>{p.newsCount ?? 0} actualités · {p.aiModel || "Moteur quantitatif"}</b>
                       </span>
                     </div>
+                    {p.summary && <details className="passport-reading" translate="no"><summary>{journeyCopy[language].previousReading}</summary><p>{p.summary}</p>{p.invalidation && <p>{p.invalidation}</p>}</details>}
                     <footer>
-                      <span>{p.createdAt}{p.evidence ? ` · ${p.evidence}` : ""}</span>
+                      <span>{p.recordedAtIso ? new Date(p.recordedAtIso).toLocaleString(locale) : p.createdAt}{p.evidence ? ` · ${p.evidence}` : ""}</span>
                       <button
                         onClick={() =>
                           setPassports((x) => x.filter((v) => v.id !== p.id))
