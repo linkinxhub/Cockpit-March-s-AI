@@ -1,3 +1,4 @@
+import UsageBeacon from "@/components/usage-beacon";
 import FeedbackCenter from "@/components/feedback-center";
 import UpdateCenter from "@/components/update-center";
 import { BUILD_ID } from "@/lib/build-version";
@@ -21,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className="antialiased">{children}<FeedbackCenter/><UpdateCenter runningBuild={BUILD_ID}/></body>
+      <body className="antialiased"><UsageBeacon/>{children}<FeedbackCenter/><UpdateCenter runningBuild={BUILD_ID}/></body>
     </html>
   );
 }
