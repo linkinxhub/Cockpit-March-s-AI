@@ -1,3 +1,8 @@
 import 'server-only';
-export function billingConfig(){const key=process.env.STRIPE_RESTRICTED_KEY||'',live=key.includes('_live_'),enabled=!live||process.env.STRIPE_LIVE_ENABLED==='true';const pro=process.env.STRIPE_PRO_MONTHLY_PRICE_ID||(!live?'price_1U9hfjPaqMcvZjThyHhCdmiO':''),expert=process.env.STRIPE_EXPERT_MONTHLY_PRICE_ID||(!live?'price_1U9hfpPaqMcvZjThgzBA4ADB':'');return{key,pro,expert,live,ready:!!(key&&pro&&expert&&process.env.STRIPE_WEBHOOK_SECRET&&enabled)};}
-export function billingPublicStatus(){const c=billingConfig();return{ready:c.ready,mode:c.live?'live':'test'};}
+import {getStripeSecrets} from './stripe-settings';
+import {TEST_PRICES,isTestKey,isWebhookSecret} from './stripe-test-policy';
+export async function billingConfig(){
+ try{const c=await getStripeSecrets();return {key:c.apiKey,webhookSecret:c.webhookSecret,portalConfiguration:c.portalConfiguration||'',pro:TEST_PRICES.pro,expert:TEST_PRICES.expert,live:false,ready:isTestKey(c.apiKey)&&isWebhookSecret(c.webhookSecret)};}
+ catch{return {key:'',webhookSecret:'',portalConfiguration:'',pro:TEST_PRICES.pro,expert:TEST_PRICES.expert,live:false,ready:false};}
+}
+export async function billingPublicStatus(){const c=await billingConfig();return {ready:c.ready,mode:'test'};}
