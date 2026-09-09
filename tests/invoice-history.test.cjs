@@ -1,0 +1,7 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+const m={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync('lib/invoice-history.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText)(()=>({}),m,m.exports);const {historicalInvoices}=m.exports;
+const account={id:'verified-user',customerId:'cus_VE3skKcO7rpG13'};
+const read=async path=>({id:path.split('/')[1],livemode:false,parent:{subscription_details:{metadata:{application:'cockpit-marches-ai',hosting:'sites',user_id:'verified-user'}}}});
+test('imports exactly the four verified legacy test invoices',async()=>{const invoices=await historicalInvoices(account,'sites',false,read);assert.equal(invoices.length,4);assert.equal(new Set(invoices.map(i=>i.id)).size,4);});
+test('other customers, hosts and live mode never read imported invoices',async()=>{let calls=0;const fail=async()=>{calls++;throw Error();};for(const [a,h,l] of [[{...account,customerId:'cus_other'},'sites',false],[account,'vercel',false],[account,'sites',true]])assert.deepEqual(await historicalInvoices(a,h,l,fail),[]);assert.equal(calls,0);});
+test('changed ownership or mode is rejected',async()=>{await assert.rejects(historicalInvoices({...account,id:'other-user'},'sites',false,read));await assert.rejects(historicalInvoices(account,'sites',false,async p=>({...await read(p),livemode:true})));});
