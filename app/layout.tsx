@@ -1,3 +1,4 @@
+import BackToTop from "@/components/back-to-top";
 import SiteInfoLinks from "@/components/site-info-links";
 import UsageBeacon from "@/components/usage-beacon";
 import FeedbackCenter from "@/components/feedback-center";
@@ -23,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className="antialiased"><UsageBeacon/>{children}<SiteInfoLinks/><FeedbackCenter/><UpdateCenter runningBuild={BUILD_ID}/></body>
+      <body className="antialiased"><UsageBeacon/><BackToTop/>{children}<SiteInfoLinks/><FeedbackCenter/><UpdateCenter runningBuild={BUILD_ID}/></body>
     </html>
   );
 }
