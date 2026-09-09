@@ -1744,6 +1744,22 @@ export default function Home() {
     );
   };
 
+  const [scannerJump,setScannerJump]=useState(0);
+  useEffect(()=>{
+    if(!scannerJump)return;
+    const frame=requestAnimationFrame(()=>{
+      const target=document.querySelector<HTMLElement>('[data-guide="asset-summary"]');
+      if(!target)return;
+      const offset=Array.from(document.querySelectorAll<HTMLElement>('.usage-beacon, main>header, .forecastTopBanner')).reduce((total,node)=>{
+        const position=getComputedStyle(node).position;
+        return total+((position==='sticky'||position==='fixed')?node.getBoundingClientRect().height:0);
+      },16);
+      target.focus({preventScroll:true});
+      window.scrollTo({top:Math.max(0,window.scrollY+target.getBoundingClientRect().top-offset),behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+    });
+    return()=>cancelAnimationFrame(frame);
+  },[scannerJump]);
+
   const MarketTable = () => (
     <div className="table marketTable">
       <div className="tr th">
@@ -1762,6 +1778,7 @@ export default function Home() {
           onClick={() => {
             setActive(r);
             setView("Cockpit");
+            setScannerJump(n=>n+1);
           }}
         >
           <span className="asset" data-label="Actif">
@@ -2157,7 +2174,7 @@ export default function Home() {
 
         {view === "Cockpit" && (
           <>
-            <section className="headline" data-guide="asset-summary">
+            <section className="headline" tabIndex={-1} data-guide="asset-summary">
               <div>
                 <i>
                   {active.kind === "Crypto"
