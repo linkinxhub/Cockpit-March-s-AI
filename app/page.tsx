@@ -1,4 +1,5 @@
 "use client";
+import OwnerSettingsShortcuts from '@/components/owner-settings-shortcuts';
 import AIAllowance from "@/components/ai-allowance";
 import "./modules.css";
 import "./news.css";
@@ -4030,6 +4031,7 @@ export default function Home() {
 
         {view === "Paramètres" && (
           <section className="module narrow" data-guide="settings">
+            <OwnerSettingsShortcuts/>
             <div className="moduleHead">
               <div>
                 <p>PARAMÈTRES</p>
@@ -4192,7 +4194,7 @@ export default function Home() {
                   <b>Assistant OpenAI</b>
                   <small>
                     {openAiConfigured === true ? "Configuration active pour l’analyse IA." : openAiConfigured === false ? "Clé OpenAI à configurer par le propriétaire." : "État disponible pour les comptes autorisés à l’analyse IA."}
-                    {" "}<a href="/admin/ai-settings">Configuration IA · Administration</a>
+                    
                   </small>
                 </span>
                 <i>{openAiConfigured === true ? "Configuré" : openAiConfigured === false ? "À configurer" : "À vérifier"}</i>
