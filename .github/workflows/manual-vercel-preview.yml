@@ -3,6 +3,10 @@ name: Manual Vercel Preview
 on:
   workflow_dispatch:
     inputs:
+      ref:
+        description: 'Exact branch, tag, or commit SHA to deploy'
+        required: true
+        type: string
       confirm:
         description: 'Type DEPLOY_PREVIEW to confirm a Vercel preview deployment'
         required: true
@@ -32,7 +36,14 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          ref: feat/flutter-mobile-sync
+          ref: ${{ inputs.ref }}
+
+      - name: Record exact source revision
+        id: source
+        run: |
+          SHA=$(git rev-parse --verify HEAD)
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Deploying ref '${{ inputs.ref }}' at $SHA"
 
       - uses: actions/setup-node@v4
         with:
@@ -76,4 +87,5 @@ jobs:
       - name: Summary
         run: |
           echo "### Manual Vercel preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source: ${{ inputs.ref }} → ${{ steps.source.outputs.sha }}" >> "$GITHUB_STEP_SUMMARY"
           echo "${{ steps.deploy.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

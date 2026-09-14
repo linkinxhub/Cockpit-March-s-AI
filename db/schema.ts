@@ -26,6 +26,7 @@ export const subscriptions=pgTable('subscriptions',{
  currentPeriodEnd:bigint('current_period_end',{mode:'number'}),
  cancelAtPeriodEnd:boolean('cancel_at_period_end').notNull().default(false),
  trialEndsAt:bigint('trial_ends_at',{mode:'number'}),
+ billingEventAt:bigint('billing_event_at',{mode:'number'}).notNull().default(0),
  createdAt:bigint('created_at',{mode:'number'}).notNull(),
  updatedAt:bigint('updated_at',{mode:'number'}).notNull(),
 },t=>[uniqueIndex('subscriptions_user_uidx').on(t.userId),uniqueIndex('subscriptions_stripe_customer_uidx').on(t.stripeCustomerId),uniqueIndex('subscriptions_stripe_subscription_uidx').on(t.stripeSubscriptionId),index('subscriptions_plan_status_idx').on(t.plan,t.status)]);
@@ -62,13 +63,13 @@ export const adminAuditLogs=pgTable('admin_audit_logs',{
 },t=>[index('admin_audit_logs_actor_idx').on(t.actorUserId),index('admin_audit_logs_target_idx').on(t.targetUserId),index('admin_audit_logs_created_idx').on(t.createdAt)]);
 
 export const watchlistItems=pgTable('watchlist_items',{
- userId:text('user_id').notNull(),
+ userId:text('user_id').notNull().references(()=>userProfiles.id,{onDelete:'cascade'}),
  assetKey:text('asset_key').notNull(),
  createdAt:bigint('created_at',{mode:'number'}).notNull(),
 },t=>[primaryKey({columns:[t.userId,t.assetKey]})]);
 
 export const notificationPreferences=pgTable('notification_preferences',{
- userId:text('user_id').primaryKey(),
+ userId:text('user_id').primaryKey().references(()=>userProfiles.id,{onDelete:'cascade'}),
  minimumSeverity:text('minimum_severity').notNull().default('IMPORTANT'),
  watchedOnly:boolean('watched_only').notNull().default(true),
  pushEnabled:boolean('push_enabled').notNull().default(false),
@@ -80,14 +81,14 @@ export const notificationPreferences=pgTable('notification_preferences',{
 });
 
 export const notificationReads=pgTable('notification_reads',{
- userId:text('user_id').notNull(),
+ userId:text('user_id').notNull().references(()=>userProfiles.id,{onDelete:'cascade'}),
  eventId:text('event_id').notNull(),
  readAt:bigint('read_at',{mode:'number'}).notNull(),
 },t=>[primaryKey({columns:[t.userId,t.eventId]})]);
 
 export const notificationDevices=pgTable('notification_devices',{
  id:text('id').primaryKey(),
- userId:text('user_id').notNull(),
+ userId:text('user_id').notNull().references(()=>userProfiles.id,{onDelete:'cascade'}),
  platform:text('platform').notNull(),
  provider:text('provider').notNull(),
  token:text('token'),
@@ -100,7 +101,7 @@ export const notificationDevices=pgTable('notification_devices',{
 
 export const paperTrades=pgTable('paper_trades',{
  id:text('id').primaryKey(),
- userId:text('user_id').notNull(),
+ userId:text('user_id').notNull().references(()=>userProfiles.id,{onDelete:'cascade'}),
  assetKey:text('asset_key').notNull(),
  side:text('side').notNull(),
  quantity:text('quantity').notNull(),
@@ -113,7 +114,7 @@ export const paperTrades=pgTable('paper_trades',{
 
 export const decisionNotes=pgTable('decision_notes',{
  id:text('id').primaryKey(),
- userId:text('user_id').notNull(),
+ userId:text('user_id').notNull().references(()=>userProfiles.id,{onDelete:'cascade'}),
  assetKey:text('asset_key'),
  noteText:text('note_text').notNull(),
  createdAt:bigint('created_at',{mode:'number'}).notNull(),
@@ -121,7 +122,7 @@ export const decisionNotes=pgTable('decision_notes',{
 });
 
 export const userWorkspaceState=pgTable('user_workspace_state',{
- userId:text('user_id').primaryKey(),
+ userId:text('user_id').primaryKey().references(()=>userProfiles.id,{onDelete:'cascade'}),
  profile:jsonb('profile').notNull().default({}),
  priceAlerts:jsonb('price_alerts').notNull().default([]),
  passports:jsonb('passports').notNull().default([]),

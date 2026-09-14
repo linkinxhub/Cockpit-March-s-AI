@@ -24,5 +24,9 @@ jobs:
           cache: 'npm'
       - name: Install exact locked dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-      - name: Build Next.js
-        run: npx next build
+      - name: Lint
+        run: npm run lint
+      - name: Build deployable application
+        run: npm run build
+      - name: Test contracts and rendered output
+        run: node --test tests/*.test.mjs tests/*.test.cjs
