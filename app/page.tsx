@@ -36,6 +36,7 @@ import "./decision-audit.css";
 import "./technical-indicators.css";
 import "./premium-access.css";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {useRouter} from 'next/navigation';
 import {
   Activity,
   AlertTriangle,
@@ -401,6 +402,7 @@ function IchimokuTooltip({ active, payload, label, locale }: { active?:boolean; 
 }
 
 export default function Home() {
+  const router=useRouter();
   const [rows, setRows] = useState<Row[]>(discoveryAssets(seed)),
     [active, setActive] = useState<Row>(seed[0]),
     [view, setView] = useState("Cockpit"),
@@ -552,7 +554,8 @@ export default function Home() {
     setOpenAiAnalysis(null);
     setOpenAiLoading(false);
     setOpenAiError("");
-    return () => { ++openAiRequest.current; openAiController.current?.abort(); };
+    const controller=openAiController.current;
+    return () => { ++openAiRequest.current; controller?.abort(); };
   }, [openAiContextKey]);
   useEffect(() => {
     if (!aiAllowed) return;
@@ -960,7 +963,7 @@ export default function Home() {
     }
   };
   const savePassport = () => {
-    if (!journeyAccess.passport) { window.location.href = "/pricing"; return; }
+    if (!journeyAccess.passport) { router.push("/pricing"); return; }
     if (!journeyReady || !decisionTechnical || !decisionValue || decisionTechnical.key !== active.key) return;
     const row = decisionTechnical;
     const stop = decisionValue === "ACHETER" ? row.support : decisionValue === "VENDRE" ? row.resistance : null;
@@ -1479,7 +1482,7 @@ export default function Home() {
   }, [journeyDestination, view]);
   const onJourneyAction = (action: JourneyAction) => {
     const featureAllowed = action === "alert" ? journeyAccess.alert : action === "journal" ? journeyAccess.journal : ["save", "history"].includes(action) ? journeyAccess.passport : action === "comparison" ? journeyAccess.compare : true;
-    if (!featureAllowed) { window.location.href = "/pricing"; return; }
+    if (!featureAllowed) { router.push("/pricing"); return; }
     if (action === "favorite") { void toggleFavorite(active.key); return; }
     if (action === "refresh") { setAnalysisRevision(value => value + 1); void scan(); return; }
     if (action === "save") { savePassport(); setJourneyDestination({ selector: '[data-guide="passports"]' }); return; }
@@ -2242,7 +2245,7 @@ export default function Home() {
                   </span>
                 </div>
               )}
-              <div ref={marketRotation.container} className="headlineAssets" aria-label="Accès rapide aux actifs">
+              <div ref={marketRotation.containerRef} className="headlineAssets" aria-label="Accès rapide aux actifs">
                 <div className="headlineAssetKinds">
                   {(["Indices", "Crypto", "Forex", "Métaux", "Baromètres"] as const).map((category) => (
                     <button key={category} className={headlineCategory === category ? "on" : ""} onClick={() => setHeadlineCategory(category)}>
@@ -2252,7 +2255,7 @@ export default function Home() {
                   <button className="all" onClick={() => setAssetSearchOpen(true)}>Tous ({rows.length})</button>
                 </div>
                 <button type="button" className="headlineRotation" aria-pressed={marketRotation.paused} onClick={()=>marketRotation.setPaused(v=>!v)}>{marketRotation.paused?({fr:'▶ Reprendre',en:'▶ Resume',de:'▶ Fortsetzen',nl:'▶ Hervatten'}[language]):({fr:'Ⅱ Pause',en:'Ⅱ Pause',de:'Ⅱ Pause',nl:'Ⅱ Pauze'}[language])}</button>
-                <div ref={marketRotation.rail} className="headlineAssetRail">
+                <div ref={marketRotation.railRef} className="headlineAssetRail">
                   {rows.filter((row) => row.kind === headlineCategory).map((row) => (
                     <button key={row.key} className={active.key === row.key ? "active" : ""} onClick={() => { setActive(row); setView("Cockpit"); }} title={`${row.symbol} · ${row.name}`}>
                       <b>{row.symbol}</b>
@@ -2283,7 +2286,7 @@ export default function Home() {
                 {visibleOpenAiError && <small role="status">{analysisErrorMessage(visibleOpenAiError)}</small>}
               </div>
               <div className="cockpitAiCardActions">
-                <button onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : (window.location.href = "/account")} disabled={aiButtonDisabled}>
+                <button onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : router.push("/account")} disabled={aiButtonDisabled}>
                   <Activity />{openAiLoading ? "Analyse en cours…" : aiAllowed ? aiDataLoading ? "Chargement des données…" : openAiConfigured === false ? "Vérifier l’activation" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant" : "Découvrir l’IA"}
                 </button>
                 <button className="secondary" onClick={() => { openView("Prévisions"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
@@ -3534,7 +3537,7 @@ export default function Home() {
                 </div>
                 <div className="openAiControls">
                   <span className="openAiAuto"><i className={openAiLoading ? "pulse" : ""} />{openAiConfigured === true ? "Actualisation automatique" : "Activation en attente"}</span>
-                  <button onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : (window.location.href = "/account")} disabled={aiButtonDisabled}>
+                  <button onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : router.push("/account")} disabled={aiButtonDisabled}>
                     <Activity />
                     {openAiLoading ? "Analyse en cours…" : !aiAllowed ? "Débloquer avec Expert" : aiDataLoading ? "Chargement des données…" : openAiConfigured === false ? "Vérifier l’activation" : openAiAnalysis ? "Actualiser l’analyse" : "Analyser maintenant"}
                   </button>
@@ -3547,7 +3550,7 @@ export default function Home() {
                 <div className="openAiError" role="status">
                   <AlertTriangle />
                   <span><b>Analyse OpenAI indisponible</b><small>{analysisErrorMessage(visibleOpenAiError)}</small></span>
-                  <button disabled={aiButtonDisabled} onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : (window.location.href = "/account")}>Réessayer</button>
+                  <button disabled={aiButtonDisabled} onClick={() => aiAllowed ? void runOpenAiAnalysis(true) : router.push("/account")}>Réessayer</button>
                 </div>
               )}
               {openAiAnalysis && (
