@@ -1372,6 +1372,7 @@ export default function Home() {
         : `Rester en observation entre ${number(active.support, 5)} et ${number(active.resistance, 5)} jusqu’à une clôture confirmée.`;
   const marketSession = active.kind === "Indices" ? indexMarketStatus(active.key,currentNow) : null;
   const runDeepResearch = async () => {
+    if (deepController.current && !deepController.current.signal.aborted || openAiController.current && !openAiController.current.signal.aborted) return;
     if (!aiAllowed || aiQuotaExhausted || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError || active.stale || deepLoading || openAiLoading) return;
     deepController.current?.abort();
     const controller = new AbortController();
@@ -1406,7 +1407,7 @@ export default function Home() {
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.code || "OPENAI_ERROR");
+      if (!response.ok) throw new Error(data.code || data.error || "OPENAI_ERROR");
       if (!controller.signal.aborted) setDeepResult({ ...data.analysis, sources: data.analysis.sources || [], generatedAt: data.generatedAt, model: data.model, contextKey: currentKey });
     } catch (error) {
       if (!controller.signal.aborted) setDeepError(error instanceof Error ? error.message : "OPENAI_ERROR");
@@ -1414,9 +1415,11 @@ export default function Home() {
     } finally {
       window.clearTimeout(timeout);
       if (deepController.current === controller) {deepController.current = null;setDeepLoading(false);}
+      window.dispatchEvent(new Event("ai-usage-changed"));
     }
   };
   const runOpenAiAnalysis = async (force = false, signal?: AbortSignal) => {
+    if (deepController.current && !deepController.current.signal.aborted) return;
     if (!aiAllowed || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError || deepLoading) return;
     if (aiQuotaExhausted || (!force && (!autoAi || openAiConfigured !== true))) return;
     const analysisKey = [active.key, timeframe, language, analysisRevision, active.last,
@@ -3584,7 +3587,7 @@ export default function Home() {
             <section className="deepResearchPanel" aria-label="Recherche approfondie">
               <div className="deepResearchHeader">
                 <div><Bot size={22}/><span><b>Recherche approfondie IA</b><small>{active.symbol} · {timeframeLabel} · Analyse technique, macroéconomique et actualités vérifiables</small></span></div>
-                <button type="button" onClick={() => void runDeepResearch()} disabled={!aiAllowed || aiQuotaExhausted || aiDataLoading || deepLoading || openAiLoading || active.unavailable || active.stale || !selectedForecast}>
+                <button type="button" onClick={() => void runDeepResearch()} disabled={!aiAllowed || aiQuotaExhausted || aiDataLoading || deepLoading || openAiLoading || active.unavailable || active.stale || Boolean(historyError) || !selectedForecast}>
                   {deepLoading ? "Recherche en cours…" : !aiAllowed ? "Accès IA requis" : aiQuotaExhausted ? "Quota IA atteint" : active.stale ? "Données à actualiser" : "Lancer la recherche approfondie"}
                 </button>
               </div>
@@ -3614,7 +3617,7 @@ export default function Home() {
                 </div>
                 <p><b>Condition d'invalidation :</b> {currentDeepResult.invalidation}</p>
                 <p className="deepResearchDisclaimer">{currentDeepResult.disclaimer} · L'utilisateur conserve la décision finale ; aucun ordre n'est exécuté.</p>
-                {currentDeepResult.sources.length > 0 && <div className="deepResearchSources"><b>Sources citées par la recherche</b><ul>{currentDeepResult.sources.map((source,i)=><li key={i}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a></li>)}</ul></div>}
+                {currentDeepResult.sources.length > 0 && <div className="deepResearchSources"><b>Sources consultées ou citées par la recherche</b><ul>{currentDeepResult.sources.map((source,i)=><li key={i}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a></li>)}</ul></div>}
                 <small>Analyse générée le {new Date(currentDeepResult.generatedAt).toLocaleString(locale)}. Vérifiez les cours et les sources avant toute décision.</small>
               </div>}
             </section>

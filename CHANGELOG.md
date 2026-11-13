@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-13 — Reprise de validation PR #37
+
+- Ajout de BTC/EUR avec historiques Binance BTCEUR / Yahoo BTC-EUR et actualités dédiées ; sélection Découverte conservée.
+- Rafraîchissement du quota après recherche approfondie, erreurs d'accès précises et bouton désactivé si l'historique est en erreur.
+- Renforcement du verrou entre modes instantané et approfondi ; rejet des réponses fournisseur incomplètes.
+- Clarification des sources consultées ou citées.
+- Tests comportementaux ajoutés à la CI : sources, accès, quotas, erreurs, remboursement, paire EUR et mode instantané.
+- Baseline a4a5a32 : deux workflows réussis et déploiement Vercel confirmé. Build local et 89 tests ciblés réussis ; E2E OpenAI authentifié et rendu des nouveaux correctifs encore à valider. Preuves et limites dans STATUS.md.
+- Aucune publication en production ni fusion.
+
 ## 2026-11-13 — En validation (branche feature/deep-market-research)
 
 - Ajout d'un déclenchement manuel de recherche approfondie sur l'actif et la périodicité sélectionnés.

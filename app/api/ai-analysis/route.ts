@@ -178,6 +178,7 @@ export async function POST(request: NextRequest) {
       const status = upstream.status === 401 ? 502 : upstream.status === 429 ? 429 : 502;
       return NextResponse.json({ code: upstream.status === 401 ? "OPENAI_AUTH_ERROR" : upstream.status === 429 ? "OPENAI_LIMIT" : deep && upstream.status === 400 ? "RESEARCH_UNAVAILABLE" : "OPENAI_ERROR" }, { status });
     }
+    if (data.status && data.status !== "completed") throw new Error("incomplete_response");
     const text = extractText(data);
     if (!text) throw new Error("empty");
     const parsed = JSON.parse(text);

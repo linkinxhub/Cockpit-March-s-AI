@@ -28,7 +28,7 @@ test('instant and deep requests cannot run concurrently', () => {
   assert.match(page, /\|\| historyError \|\| deepLoading\) return/);
   assert.match(page, /\|\| active\.stale \|\| deepLoading \|\| openAiLoading\) return/);
   assert.match(page, /aiQuotaExhausted \|\| openAiLoading \|\| deepLoading/);
-  assert.match(page, /active\.stale \|\| !selectedForecast/);
+  assert.match(page, /active\.stale \|\| Boolean\(historyError\) \|\| !selectedForecast/);
 });
 test('failed research receives actionable errors while allowance is refundable', () => {
   const context = readFileSync(new URL('../lib/analysis-context.ts', import.meta.url), 'utf8');
@@ -36,4 +36,11 @@ test('failed research receives actionable errors while allowance is refundable',
   assert.match(context, /RESEARCH_UNAVAILABLE/);
   assert.match(route, /deep && upstream\.status === 400 \? "RESEARCH_UNAVAILABLE"/);
   assert.match(route, /refundAIAllowance\(reservation\)/);
+});
+
+test('deep UI refreshes quota and preserves access error codes', () => {
+  const deep = page.slice(page.indexOf('const runDeepResearch ='), page.indexOf('const runOpenAiAnalysis ='));
+  assert.match(deep, /data\.code \|\| data\.error/);
+  assert.match(deep, /dispatchEvent\(new Event\("ai-usage-changed"\)\)/);
+  assert.match(deep, /openAiController\.current\.signal\.aborted/);
 });
