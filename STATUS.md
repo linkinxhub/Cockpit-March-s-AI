@@ -18,3 +18,11 @@
 - La Preview dispose maintenant d'un contrôle de contrat automatisé lors des Pull Requests.
 - La progression à cinq étapes est informative : elle ne prétend pas connaître l'avancement interne exact du modèle.
 - Le mode approfondi compte actuellement comme une utilisation de l'analyse IA ; coût et positionnement commercial sont encore à arbitrer avant production.
+
+## Validation complémentaire (13 novembre 2026)
+- Première Preview : `READY`; build Next.js + tests de contrat et Guardian réussis.
+- Contrôle Vercel : variables `OPENAI_API_KEY` présentes en Preview (valeurs non consultées).
+- Requête E2E authentifiée non exécutée ; accès protégé et absence de session utilisateur dans les outils de vérification.
+- Correction des appels IA concurrents pour éviter une double consommation de quota.
+- Messages dédiés pour sources invérifiables et recherches Web indisponibles.
+- Dernier commit soumis aux contrôles Preview ; ne pas fusionner tant que les vérifications et l'E2E ne sont pas validés.
