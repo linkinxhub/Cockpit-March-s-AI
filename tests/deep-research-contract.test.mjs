@@ -23,3 +23,16 @@ test('UI sends current asset and time frame without executing trades', () => {
   assert.match(page, /symbol: active\.symbol/);
   assert.match(page, /aucun ordre n'est exécuté/);
 });
+
+test('instant and deep requests cannot run concurrently', () => {
+  assert.match(page, /\|\| historyError \|\| deepLoading\) return/);
+  assert.match(page, /\|\| deepLoading \|\| openAiLoading\) return/);
+  assert.match(page, /aiQuotaExhausted \|\| openAiLoading \|\| deepLoading/);
+});
+test('failed research receives actionable errors while allowance is refundable', () => {
+  const context = readFileSync(new URL('../lib/analysis-context.ts', import.meta.url), 'utf8');
+  assert.match(context, /RESEARCH_NOT_VERIFIED/);
+  assert.match(context, /RESEARCH_UNAVAILABLE/);
+  assert.match(route, /deep && upstream\.status === 400 \? "RESEARCH_UNAVAILABLE"/);
+  assert.match(route, /refundAIAllowance\(reservation\)/);
+});
