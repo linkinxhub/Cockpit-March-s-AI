@@ -15,3 +15,8 @@
 - Adaptation du prompt aux données externes non fiables, avec préférence pour « ATTENDRE » si les preuves sont insuffisantes.
 - Affichage d'une progression en cinq étapes sans avancement fictif.
 - Ajout d'un test de contrat au pipeline CI Preview.
+
+### Correctifs supplémentaires
+- Empêche l'exécution simultanée de l'analyse instantanée et du mode approfondi.
+- Messages explicites `RESEARCH_NOT_VERIFIED` et `RESEARCH_UNAVAILABLE` ; erreurs sécurisées côté utilisateur.
+- Tests de contrat CI étendus à ces protections et au remboursement des requêtes IA échouées.
