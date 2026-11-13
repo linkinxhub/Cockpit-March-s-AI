@@ -10,9 +10,13 @@ test('deep mode preserves server entitlement and quota', () => {
   assert.match(route, /body\?\.mode === "deep"/);
 });
 test('deep mode uses research tool and structured verdict', () => {
-  assert.match(route, /web_search_preview/);
+  assert.match(route, /type: "web_search"/);
+  assert.match(route, /web_search_call.action.sources/);
+  assert.match(route, /RESEARCH_NOT_VERIFIED/);
+  assert.match(route, /maxDuration = 120/);
   assert.match(route, /z\.enum\(\["ACHETER", "VENDRE", "ATTENDRE"\]\)/);
-  assert.match(route, /url\.protocol === "https:"/);
+  assert.match(route, /u\.protocol === "https:"/);
+  assert.match(route, /tool_choice: "required"/);
 });
 test('UI sends current asset and time frame without executing trades', () => {
   assert.match(page, /mode: "deep", locale: language, timeframe/);
