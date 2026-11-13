@@ -3590,7 +3590,17 @@ export default function Home() {
               </div>
               {deepLoading && <div className="deepResearchProgress" role="status" aria-live="polite">
                 <span className="deepResearchSpinner" aria-hidden="true"/>
-                <div><b>Analyse approfondie en cours</b><small>Recherche des sources récentes, confrontation aux indicateurs et synthèse des scénarios. Les résultats ne sont pas garantis.</small></div>
+                <div>
+                  <b>Recherche approfondie en cours</b>
+                  <small>Collecte des sources Web en cours. Les étapes suivantes seront vérifiées avant de présenter un résultat.</small>
+                  <ol className="deepResearchSteps">
+                    <li><span aria-hidden="true">◉</span> Rechercher les données et sources de marché</li>
+                    <li><span aria-hidden="true">○</span> Croiser les indicateurs techniques et prévisions</li>
+                    <li><span aria-hidden="true">○</span> Examiner macroéconomie, ETF et flux si pertinents</li>
+                    <li><span aria-hidden="true">○</span> Évaluer les risques et divergences</li>
+                    <li><span aria-hidden="true">○</span> Établir un verdict conditionnel et ses sources</li>
+                  </ol>
+                </div>
               </div>}
               {deepError && <p className="deepResearchError" role="alert">Recherche indisponible : {analysisErrorMessage(deepError)}</p>}
               {currentDeepResult && <div className="deepResearchResults">
