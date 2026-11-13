@@ -1372,7 +1372,7 @@ export default function Home() {
         : `Rester en observation entre ${number(active.support, 5)} et ${number(active.resistance, 5)} jusqu’à une clôture confirmée.`;
   const marketSession = active.kind === "Indices" ? indexMarketStatus(active.key,currentNow) : null;
   const runDeepResearch = async () => {
-    if (!aiAllowed || aiQuotaExhausted || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError || deepLoading || openAiLoading) return;
+    if (!aiAllowed || aiQuotaExhausted || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError || active.stale || deepLoading || openAiLoading) return;
     deepController.current?.abort();
     const controller = new AbortController();
     deepController.current = controller;
@@ -3584,10 +3584,12 @@ export default function Home() {
             <section className="deepResearchPanel" aria-label="Recherche approfondie">
               <div className="deepResearchHeader">
                 <div><Bot size={22}/><span><b>Recherche approfondie IA</b><small>{active.symbol} · {timeframeLabel} · Analyse technique, macroéconomique et actualités vérifiables</small></span></div>
-                <button type="button" onClick={() => void runDeepResearch()} disabled={!aiAllowed || aiQuotaExhausted || aiDataLoading || deepLoading || openAiLoading || active.unavailable || !selectedForecast}>
-                  {deepLoading ? "Recherche en cours…" : "Lancer la recherche approfondie"}
+                <button type="button" onClick={() => void runDeepResearch()} disabled={!aiAllowed || aiQuotaExhausted || aiDataLoading || deepLoading || openAiLoading || active.unavailable || active.stale || !selectedForecast}>
+                  {deepLoading ? "Recherche en cours…" : !aiAllowed ? "Accès IA requis" : aiQuotaExhausted ? "Quota IA atteint" : active.stale ? "Données à actualiser" : "Lancer la recherche approfondie"}
                 </button>
               </div>
+              {!aiAllowed && <p className="deepResearchNote">Connectez-vous et vérifiez les droits de votre formule pour utiliser la recherche approfondie.</p>}
+              {active.stale && <p className="deepResearchNote">Le cours sélectionné est périmé : actualisez les données avant de lancer une recherche.</p>}
               {deepLoading && <div className="deepResearchProgress" role="status" aria-live="polite">
                 <span className="deepResearchSpinner" aria-hidden="true"/>
                 <div>
