@@ -32,3 +32,5 @@
 .deepResearchSteps li{display:flex;align-items:flex-start;gap:8px;font-size:.88rem;line-height:1.4;opacity:.8}
 .deepResearchSteps li:first-child{opacity:1;font-weight:600}
 .deepResearchSteps li span{width:18px;flex-shrink:0;color:#9acaff}
+
+.deepResearchNote{font-size:.9rem;margin:12px 0 0;line-height:1.5;opacity:.85}
