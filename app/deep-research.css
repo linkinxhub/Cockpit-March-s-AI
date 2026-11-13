@@ -26,3 +26,9 @@
 .deepResearchSources a{color:#9acaff;text-decoration:underline}
 .deepResearchDisclaimer{opacity:.8;font-size:.9rem}
 @media(max-width:680px){.deepResearchPanel{padding:16px}.deepResearchHeader button{width:100%}.deepResearchColumns{grid-template-columns:minmax(0,1fr)}}
+
+.deepResearchProgress>div{min-width:0;flex:1}
+.deepResearchSteps{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px}
+.deepResearchSteps li{display:flex;align-items:flex-start;gap:8px;font-size:.88rem;line-height:1.4;opacity:.8}
+.deepResearchSteps li:first-child{opacity:1;font-weight:600}
+.deepResearchSteps li span{width:18px;flex-shrink:0;color:#9acaff}
