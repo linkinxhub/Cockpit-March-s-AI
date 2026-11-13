@@ -1372,7 +1372,7 @@ export default function Home() {
         : `Rester en observation entre ${number(active.support, 5)} et ${number(active.resistance, 5)} jusqu’à une clôture confirmée.`;
   const marketSession = active.kind === "Indices" ? indexMarketStatus(active.key,currentNow) : null;
   const runDeepResearch = async () => {
-    if (!aiAllowed || aiQuotaExhausted || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError || deepLoading) return;
+    if (!aiAllowed || aiQuotaExhausted || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError || deepLoading || openAiLoading) return;
     deepController.current?.abort();
     const controller = new AbortController();
     deepController.current = controller;
@@ -1417,7 +1417,7 @@ export default function Home() {
     }
   };
   const runOpenAiAnalysis = async (force = false, signal?: AbortSignal) => {
-    if (!aiAllowed || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError) return;
+    if (!aiAllowed || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError || deepLoading) return;
     if (aiQuotaExhausted || (!force && (!autoAi || openAiConfigured !== true))) return;
     const analysisKey = [active.key, timeframe, language, analysisRevision, active.last,
       active.decision, selectedForecast.outlook, selectedForecast.reliability,
@@ -1498,7 +1498,7 @@ export default function Home() {
     newsUpdated, chartLoading, comparisonLoading, bigdataLoading, historyError, aiAllowed, openAiConfigured]);
   const visibleOpenAiError = openAiError || (aiAllowed && openAiConfigured === false ? "SERVICE_UNAVAILABLE" : "");
   const aiDataLoading = chartLoading || comparisonLoading || bigdataLoading;
-  const aiButtonDisabled = aiQuotaExhausted || openAiLoading || (aiAllowed && (active.unavailable || aiDataLoading || Boolean(historyError)));
+  const aiButtonDisabled = aiQuotaExhausted || openAiLoading || deepLoading || (aiAllowed && (active.unavailable || aiDataLoading || Boolean(historyError)));
   // Keep the selected period's technical snapshot separate from scanner rows.
   const decisionTechnical = decisionHistory?.contextKey === decisionHistoryKey && !chartLoading && !historyError && !active.unavailable
     ? decisionHistory.row : null;
@@ -3584,7 +3584,7 @@ export default function Home() {
             <section className="deepResearchPanel" aria-label="Recherche approfondie">
               <div className="deepResearchHeader">
                 <div><Bot size={22}/><span><b>Recherche approfondie IA</b><small>{active.symbol} · {timeframeLabel} · Analyse technique, macroéconomique et actualités vérifiables</small></span></div>
-                <button type="button" onClick={() => void runDeepResearch()} disabled={!aiAllowed || aiQuotaExhausted || aiDataLoading || deepLoading || active.unavailable}>
+                <button type="button" onClick={() => void runDeepResearch()} disabled={!aiAllowed || aiQuotaExhausted || aiDataLoading || deepLoading || openAiLoading || active.unavailable || !selectedForecast}>
                   {deepLoading ? "Recherche en cours…" : "Lancer la recherche approfondie"}
                 </button>
               </div>
