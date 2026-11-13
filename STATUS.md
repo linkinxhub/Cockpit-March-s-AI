@@ -2,6 +2,16 @@
 
 Branche : `feature/deep-market-research`. PR : https://github.com/linkinxhub/Cockpit-March-s-AI/pull/37 (ouverte, non fusionnée).
 
+## Résultat des correctifs poussés
+
+- Commit fonctionnel final : `1a983cf6905635cab4719cd7a7dc8f1d97dcf9d1` (précédé de `7a9e0da`). La référence de l'appel instantané est libérée à sa fin pour permettre la recherche approfondie suivante.
+- Preview Build Guardian **success** (build Next.js et 14 tests de recherche) : https://github.com/linkinxhub/Cockpit-March-s-AI/actions/runs/43390470154
+- Web Flutter Sync Guardian **success** : https://github.com/linkinxhub/Cockpit-March-s-AI/actions/runs/43390470153
+- Vercel **success**, 13 novembre 2026 à 08:05:54 UTC : https://vercel.com/adilbtp-8978s-projects/cockpit-march-s-ai/BNxevXEkBBQ8JMrXMiF5xzSut7Mv
+- Preview du code corrigé : https://cockpit-march-s-44xrtd3fr-adilbtp-8978s-projects.vercel.app
+- Après la dernière correction : 14/14 tests de recherche repassés et `tsc --noEmit` réussi. Les 89 tests ciblés avaient réussi avant cette correction de libération de référence. La CI finale confirme le build et les tests concernés.
+- Cette section est un relevé du commit fonctionnel indiqué ; une éventuelle révision ultérieure limitée à la documentation n'est pas présentée comme un nouveau test E2E.
+
 ## Baseline distante vérifiée : a4a5a32
 
 - SHA : `a4a5a32ad53b60215d532d4611d0d64461a8c78d` ; état initial propre après clonage dans le dossier vide.

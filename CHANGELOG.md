@@ -9,6 +9,7 @@
 - Tests comportementaux ajoutés à la CI : sources, accès, quotas, erreurs, remboursement, paire EUR et mode instantané.
 - Baseline a4a5a32 : deux workflows réussis et déploiement Vercel confirmé. Build local et 89 tests ciblés réussis ; E2E OpenAI authentifié et rendu des nouveaux correctifs encore à valider. Preuves et limites dans STATUS.md.
 - Aucune publication en production ni fusion.
+- Validation distante finale du code `1a983cf` : Preview Build Guardian et Web Flutter Sync Guardian réussis ; Preview Vercel déployée. Libération de la référence d'appel instantané après sa fin pour débloquer la recherche suivante. Le test authentifié reste ouvert.
 
 ## 2026-11-13 — En validation (branche feature/deep-market-research)
 
