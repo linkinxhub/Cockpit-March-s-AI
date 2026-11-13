@@ -23,6 +23,7 @@ import "./bigdata.css";
 import "./risk-warning.css";
 import "./top-forecast.css";
 import "./ai-analysis.css";
+import "./deep-research.css";
 import "./cockpit-ai-card.css";
 import "./panorama-collapse.css";
 import "./interactive-guide.css";
@@ -470,6 +471,10 @@ export default function Home() {
   const [bigdata, setBigdata] = useState<BigdataIntel | null>(null),
     [bigdataLoading, setBigdataLoading] = useState(false);
   const [language, setLanguage] = useState<Lang>("fr");
+  const [deepResult, setDeepResult] = useState<(OpenAiAnalysis & {sources: {title:string;url:string}[];contextKey:string}) | null>(null);
+  const [deepLoading, setDeepLoading] = useState(false);
+  const [deepError, setDeepError] = useState("");
+  const deepController = useRef<AbortController | null>(null);
   const [openAiResult, setOpenAiAnalysis] = useState<(OpenAiAnalysis & { contextKey: string }) | null>(null),
     [openAiLoading, setOpenAiLoading] = useState(false),
     [openAiError, setOpenAiError] = useState("");
@@ -481,6 +486,7 @@ export default function Home() {
   const [openAiConfigured, setOpenAiConfigured] = useState<boolean | null>(null);
   const openAiContextKey = [active.key, timeframe, language, analysisRevision, active.last, active.decision, active.unavailable].join("|");
   const openAiAnalysis = openAiResult?.contextKey === openAiContextKey ? openAiResult : null;
+  const currentDeepResult = deepResult?.contextKey === openAiContextKey ? deepResult : null;
   const [favorites, setFavorites] = useState<string[]>([]),
     [favoritesReady, setFavoritesReady] = useState(false);
   const [entitlements,setEntitlements]=useState<Record<string,{allowed:boolean;requiredPlan:string|null}>|null>(null);
@@ -544,6 +550,13 @@ export default function Home() {
       if (request === scanRequest.current) setScanning(false);
     }
   };
+  useEffect(() => {
+    deepController.current?.abort();
+    setDeepLoading(false);
+    setDeepError("");
+    setDeepResult(null);
+    return () => deepController.current?.abort();
+  }, [openAiContextKey]);
   useEffect(() => {
     ++openAiRequest.current;
     openAiController.current?.abort();
@@ -1358,6 +1371,51 @@ export default function Home() {
         ? `Biais baissier seulement sous ${number(active.support, 5)} ; invalidation au-dessus de ${number(active.resistance, 5)}.`
         : `Rester en observation entre ${number(active.support, 5)} et ${number(active.resistance, 5)} jusqu’à une clôture confirmée.`;
   const marketSession = active.kind === "Indices" ? indexMarketStatus(active.key,currentNow) : null;
+  const runDeepResearch = async () => {
+    if (!aiAllowed || aiQuotaExhausted || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError || deepLoading) return;
+    deepController.current?.abort();
+    const controller = new AbortController();
+    deepController.current = controller;
+    const currentKey = openAiContextKey;
+    const timeout = window.setTimeout(() => controller.abort(new DOMException("Timeout", "TimeoutError")), 120_000);
+    setDeepLoading(true);
+    setDeepError("");
+    setDeepResult(null);
+    try {
+      const response = await fetch("/api/ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          mode: "deep", locale: language, timeframe,
+          asset: {
+            symbol: active.symbol, name: active.name, kind: active.kind,
+            price: active.last, change: active.change, decision: active.decision,
+            confidence: active.confidence, risk: active.risk, rsi: active.rsi,
+            ema20: active.ema20, ema50: active.ema50, volatility: active.volatility,
+            support: active.support, resistance: active.resistance,
+          },
+          forecast: {
+            outlook: selectedForecast.outlook, reliability: selectedForecast.reliability,
+            low: selectedForecast.low, center: selectedForecast.center, high: selectedForecast.high,
+            bull: selectedForecast.bull, neutral: selectedForecast.neutral, bear: selectedForecast.bear,
+            newsScore: selectedForecast.newsScore, macroBias: selectedForecast.macroBias,
+          },
+          bigdata: liveBigdata,
+          news: (news[active.key] || []).filter(item => isRecentTimestamp(item.publishedAt, Date.now(), 48 * 60 * 60_000)).slice(0, 5),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.code || "OPENAI_ERROR");
+      if (!controller.signal.aborted) setDeepResult({ ...data.analysis, sources: data.analysis.sources || [], generatedAt: data.generatedAt, model: data.model, contextKey: currentKey });
+    } catch (error) {
+      if (!controller.signal.aborted) setDeepError(error instanceof Error ? error.message : "OPENAI_ERROR");
+      else if (controller.signal.reason?.name === "TimeoutError") setDeepError("OPENAI_TIMEOUT");
+    } finally {
+      window.clearTimeout(timeout);
+      if (deepController.current === controller) {deepController.current = null;setDeepLoading(false);}
+    }
+  };
   const runOpenAiAnalysis = async (force = false, signal?: AbortSignal) => {
     if (!aiAllowed || !selectedForecast || active.unavailable || chartLoading || comparisonLoading || bigdataLoading || historyError) return;
     if (aiQuotaExhausted || (!force && (!autoAi || openAiConfigured !== true))) return;
@@ -3523,6 +3581,31 @@ export default function Home() {
                 </div>
               </>
             )}
+            <section className="deepResearchPanel" aria-label="Recherche approfondie">
+              <div className="deepResearchHeader">
+                <div><Bot size={22}/><span><b>Recherche approfondie IA</b><small>{active.symbol} · {timeframeLabel} · Analyse technique, macroéconomique et actualités vérifiables</small></span></div>
+                <button type="button" onClick={() => void runDeepResearch()} disabled={!aiAllowed || aiQuotaExhausted || aiDataLoading || deepLoading || active.unavailable}>
+                  {deepLoading ? "Recherche en cours…" : "Lancer la recherche approfondie"}
+                </button>
+              </div>
+              {deepLoading && <div className="deepResearchProgress" role="status" aria-live="polite">
+                <span className="deepResearchSpinner" aria-hidden="true"/>
+                <div><b>Analyse approfondie en cours</b><small>Recherche des sources récentes, confrontation aux indicateurs et synthèse des scénarios. Les résultats ne sont pas garantis.</small></div>
+              </div>}
+              {deepError && <p className="deepResearchError" role="alert">Recherche indisponible : {analysisErrorMessage(deepError)}</p>}
+              {currentDeepResult && <div className="deepResearchResults">
+                <div className="deepResearchDecision"><strong className={currentDeepResult.decision === "ACHETER" ? "buy" : currentDeepResult.decision === "VENDRE" ? "sell" : "wait"}>{currentDeepResult.decision}</strong><span>Alignement des éléments : {currentDeepResult.confidence}% · {currentDeepResult.horizon}</span></div>
+                <p>{currentDeepResult.summary}</p>
+                <div className="deepResearchColumns">
+                  <div><b>Facteurs principaux</b><ul>{currentDeepResult.drivers.map((item,i)=><li key={i}>{item}</li>)}</ul></div>
+                  <div><b>Risques et incertitudes</b><ul>{currentDeepResult.risks.map((item,i)=><li key={i}>{item}</li>)}</ul></div>
+                </div>
+                <p><b>Condition d'invalidation :</b> {currentDeepResult.invalidation}</p>
+                <p className="deepResearchDisclaimer">{currentDeepResult.disclaimer} · L'utilisateur conserve la décision finale ; aucun ordre n'est exécuté.</p>
+                {currentDeepResult.sources.length > 0 && <div className="deepResearchSources"><b>Sources citées par la recherche</b><ul>{currentDeepResult.sources.map((source,i)=><li key={i}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title}</a></li>)}</ul></div>}
+                <small>Analyse générée le {new Date(currentDeepResult.generatedAt).toLocaleString(locale)}. Vérifiez les cours et les sources avant toute décision.</small>
+              </div>}
+            </section>
             <section className="openAiPanel" data-guide="openai-analysis">
               <div className="openAiHead">
                 <div>
