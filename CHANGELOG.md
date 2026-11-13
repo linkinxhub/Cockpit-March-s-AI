@@ -20,3 +20,9 @@
 - Empêche l'exécution simultanée de l'analyse instantanée et du mode approfondi.
 - Messages explicites `RESEARCH_NOT_VERIFIED` et `RESEARCH_UNAVAILABLE` ; erreurs sécurisées côté utilisateur.
 - Tests de contrat CI étendus à ces protections et au remboursement des requêtes IA échouées.
+
+### UX et contrôles de fraîcheur
+- Désactivation explicite de la recherche approfondie lorsque le cours actif est signalé périmé.
+- Indication des droits et quotas manquants, sans bouton trompeur.
+- Ajustement du texte d'erreur pour ne pas garantir un remboursement sans preuve de son exécution.
+- Vérification des paramètres de recherche Web utilisés dans les références officielles.
