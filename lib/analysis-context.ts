@@ -28,5 +28,7 @@ export function analysisErrorMessage(code: string) {
   if (code === "USAGE_LIMIT_REACHED") return "Votre quota mensuel d’analyses IA est atteint. Consultez votre abonnement.";
   if (code === "OPENAI_LIMIT" || code === "RATE_LIMITED") return "Limite temporaire atteinte. Réessayez dans une minute.";
   if (code === "OPENAI_TIMEOUT") return "L’analyse a pris trop de temps. Vous pouvez réessayer.";
+  if (code === "RESEARCH_NOT_VERIFIED") return "La recherche n’a pas fourni suffisamment de sources vérifiables. Aucun verdict approfondi n’a été publié et le quota a été restitué.";
+  if (code === "RESEARCH_UNAVAILABLE") return "La recherche Web n’est pas disponible avec la configuration IA actuelle. Contactez l’administrateur ou réessayez plus tard.";
   return "Le service d’analyse est momentanément indisponible. Les indicateurs techniques restent consultables.";
 }
