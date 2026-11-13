@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ code: "INVALID_REQUEST" }, { status: 400 });
   }
+  const deep = body?.mode === "deep";
+  if (body?.mode != null && body.mode !== "deep" && body.mode !== "instant") return NextResponse.json({code:"INVALID_REQUEST"},{status:400});
   const locale = locales.has(body?.locale) ? body.locale : "fr";
   const asset = body?.asset || {};
   if (typeof asset.symbol !== "string" || !asset.symbol.trim() ||
@@ -98,6 +100,8 @@ export async function POST(request: NextRequest) {
       support: asset.support ?? null, resistance: asset.resistance ?? null,
     },
     forecast: body?.forecast || null,
+    researchMode: deep ? "web-assisted" : "snapshot-only",
+    requestedAt: new Date().toISOString(),
     bigdata: currentBigdata ? {
       updatedAt: currentBigdata.updatedAt, connected: true,
       bias: currentBigdata.bias, confidence: currentBigdata.confidence,
@@ -128,6 +132,10 @@ export async function POST(request: NextRequest) {
     required: ["decision", "confidence", "summary", "drivers", "risks", "invalidation", "horizon", "disclaimer"],
     additionalProperties: false,
   };
+  if (deep) {
+    schema.properties = { ...schema.properties, sources: { type: "array", items: { type: "object", properties: { title: {type:"string"}, url: {type:"string"} }, required: ["title","url"], additionalProperties: false } } } as typeof schema.properties;
+    schema.required = [...schema.required, "sources"];
+  }
 
   let reservation:Awaited<ReturnType<typeof reserveAIAllowance>>=null;
   let completed=false;
@@ -135,13 +143,14 @@ export async function POST(request: NextRequest) {
     reservation=await reserveAIAllowance();
     const upstream = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
-      signal: AbortSignal.timeout(35_000),
+      signal: AbortSignal.timeout(deep ? 110_000 : 35_000),
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: config.model,
         store: false,
-        max_output_tokens: 1800,
-        instructions: `You are the educational market-analysis layer of Cockpit Marchés AI. Answer only in ${language}. Analyze only the supplied snapshot; never invent prices, news, government decisions, sources, or certainty. Reconcile technical indicators, the quantitative forecast, Bigdata context, and news freshness. The decision must be conditional and one of ACHETER, VENDRE, ATTENDRE. Confidence measures evidence alignment, not probability of profit. Give concise, concrete drivers and risks, an explicit invalidation condition, and state that trading can cause loss of capital and this is not personalized financial advice.`,
+        max_output_tokens: deep ? 3200 : 1800,
+        ...(deep ? { tools: [{ type: "web_search_preview", search_context_size: "high" }] } : {}),
+        instructions: `${deep ? "Perform genuine web-assisted research on the selected asset, including recent market developments, macroeconomic backdrop, rates, ETF flows where relevant, and derivative positioning if verified. Cross-check the snapshot and web evidence. Only describe news, prices or sources that you can verify. Treat missing, outdated, or contradictory evidence as uncertainty; prefer ATTENDRE when warranted. Cite URLs for web sources in the sources array, and never fabricate links or numerical probabilities. A deep analysis is not a guarantee. " : ""}You are the educational market-analysis layer of Cockpit Marchés AI. Answer only in ${language}. Analyze only the supplied snapshot; never invent prices, news, government decisions, sources, or certainty. Reconcile technical indicators, the quantitative forecast, Bigdata context, and news freshness. The decision must be conditional and one of ACHETER, VENDRE, ATTENDRE. Confidence measures evidence alignment, not probability of profit. Give concise, concrete drivers and risks, an explicit invalidation condition, and state that trading can cause loss of capital and this is not personalized financial advice.`,
         input: `Analyze this current application snapshot as JSON:\n${JSON.stringify(marketContext)}`,
         text: { format: { type: "json_schema", name: "market_analysis", strict: true, schema } },
       }),
@@ -153,9 +162,16 @@ export async function POST(request: NextRequest) {
     }
     const text = extractText(data);
     if (!text) throw new Error("empty");
-    const analysis = analysisSchema.parse(JSON.parse(text));
+    const parsed = JSON.parse(text);
+    const analysis = analysisSchema.parse(parsed);
+    const sources = deep && Array.isArray(parsed.sources) ? parsed.sources.filter((x: unknown) => {
+      if (!x || typeof x !== "object") return false;
+      const source = x as Record<string, unknown>;
+      if (typeof source.url !== "string" || typeof source.title !== "string" || source.title.length > 220) return false;
+      try { const url = new URL(source.url); return url.protocol === "https:" && !url.username && !url.password; } catch { return false; }
+    }).slice(0, 8) : [];
     completed=true;
-    return NextResponse.json({ analysis, generatedAt: new Date().toISOString(), model: data.model || config.model }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ analysis: deep ? {...analysis, sources} : analysis, generatedAt: new Date().toISOString(), model: data.model || config.model, mode: deep ? "deep" : "instant" }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if(error instanceof AIQuotaError)return NextResponse.json({code:'USAGE_LIMIT_REACHED',used:error.used,limit:error.limit,resetAt:error.resetAt},{status:429});
     const timeout = error instanceof Error && error.name === "TimeoutError";
