@@ -1485,6 +1485,7 @@ export default function Home() {
       window.clearTimeout(timeout);
       signal?.removeEventListener("abort", abort);
       if (requestId === openAiRequest.current) {
+        if (openAiController.current === controller) openAiController.current = null;
         openAiPendingKey.current = "";
         setOpenAiLoading(false);
         window.dispatchEvent(new Event("ai-usage-changed"));

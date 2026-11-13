@@ -43,4 +43,5 @@ test('deep UI refreshes quota and preserves access error codes', () => {
   assert.match(deep, /data\.code \|\| data\.error/);
   assert.match(deep, /dispatchEvent\(new Event\("ai-usage-changed"\)\)/);
   assert.match(deep, /openAiController\.current\.signal\.aborted/);
+  assert.match(page, /if \(openAiController\.current === controller\) openAiController\.current = null/);
 });
