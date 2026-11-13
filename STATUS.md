@@ -26,3 +26,9 @@
 - Correction des appels IA concurrents pour éviter une double consommation de quota.
 - Messages dédiés pour sources invérifiables et recherches Web indisponibles.
 - Dernier commit soumis aux contrôles Preview ; ne pas fusionner tant que les vérifications et l'E2E ne sont pas validés.
+
+## Vérification suivante — 13/11/2026
+- Le dernier commit avant ces modifications a validé Vercel READY et les deux workflows GitHub réussis.
+- Vérification de compatibilité avec la documentation Responses API : `web_search`, `tool_choice: required` et `include: web_search_call.action.sources` pris en charge.
+- Protection de l'interface si la cotation est périmée, si l'utilisateur n'a pas accès à l'IA ou si son quota est atteint.
+- Essai réel E2E authentifié toujours manquant ; déploiement final et tests après les derniers correctifs en attente.
