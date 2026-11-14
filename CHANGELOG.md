@@ -1,3 +1,10 @@
+
+## 2026-11-14 — Publication Vercel (PR #37)
+
+- Fusion en production de la recherche approfondie IA par actif et période, du support BTC/EUR et des corrections de quotas, sécurité et traitement des sources.
+- Vérification des workflows GitHub de Preview et du déploiement Vercel en statut READY sur `60b5899`.
+- Publication ChatGPT Sites indépendante non confirmée ; test E2E OpenAI authentifié à exécuter.
+
 # Changelog
 
 ## 2026-11-13 — Reprise de validation PR #37
