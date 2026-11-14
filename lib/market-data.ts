@@ -2,6 +2,7 @@ export const assets=[
  {symbol:'BTC/USDT',key:'BTCUSDT',name:'Bitcoin',kind:'Crypto'},
  {symbol:'ETH/USDT',key:'ETHUSDT',name:'Ethereum',kind:'Crypto'},
  {symbol:'BNB/USDT',key:'BNBUSDT',name:'BNB',kind:'Crypto'},
+ {symbol:'BTC/EUR',key:'BTCEUR',name:'Bitcoin / Euro',kind:'Crypto'},
  {symbol:'SOL/USDT',key:'SOLUSDT',name:'Solana',kind:'Crypto'},
  {symbol:'XRP/USDT',key:'XRPUSDT',name:'XRP',kind:'Crypto'},
  {symbol:'ADA/USDT',key:'ADAUSDT',name:'Cardano',kind:'Crypto'},
@@ -97,6 +98,7 @@ export const chartPeriods={
 } as const;
 export type ChartPeriod=keyof typeof chartPeriods;
 const providers=new Map<string,string[]>([
+ ['BTCEUR',['BTC-EUR']],
  ['BTCUSDT',['BTC-USD']],['ETHUSDT',['ETH-USD']],['BNBUSDT',['BNB-USD']],
  ['SOLUSDT',['SOL-USD']],['XRPUSDT',['XRP-USD']],['ADAUSDT',['ADA-USD']],['DOGEUSDT',['DOGE-USD']],['AVAXUSDT',['AVAX-USD']],['LINKUSDT',['LINK-USD']],['DOTUSDT',['DOT-USD']],
  ['TRXUSDT',['TRX-USD']],['LTCUSDT',['LTC-USD']],['BCHUSDT',['BCH-USD']],['SUIUSDT',['SUI20947-USD']],['XLMUSDT',['XLM-USD']],['TONUSDT',['TON11419-USD']],['HBARUSDT',['HBAR-USD']],['SHIBUSDT',['SHIB-USD']],['PEPEUSDT',['PEPE24478-USD']],['UNIUSDT',['UNI7083-USD']],['AAVEUSDT',['AAVE-USD']],['NEARUSDT',['NEAR-USD']],['ATOMUSDT',['ATOM-USD']],['ICPUSDT',['ICP-USD']],['APTUSDT',['APT21794-USD']],['TAOUSDT',['TAO22974-USD']],['ETCUSDT',['ETC-USD']],['FILUSDT',['FIL-USD']],['ARBUSDT',['ARB11841-USD']],['OPUSDT',['OP-USD']],
@@ -107,6 +109,7 @@ const providers=new Map<string,string[]>([
  ['STOXX600',['^STOXX']],['CSI300',['000300.SS']],['NIFTY50',['^NSEI']],['SSECOMP',['000001.SS']],['KOSPI',['^KS11']],['AEX25',['^AEX']],['BEL20',['^BFX']],['SMI20',['^SSMI']],['IBEX35',['^IBEX']],['FTSEMIB',['FTSEMIB.MI']],['TSX60',['^TX60']],['IBOVESPA',['^BVSP']],['OMX30',['^OMX']],['VIX',['^VIX']],['DXY',['DX-Y.NYB']],['MSCIWORLD',['URTH']],['MSCIEM',['EEM']],['XAUUSD',['GC=F','XAUUSD=X']],['XAGUSD',['SI=F','XAGUSD=X']]
 ]);
 const crypto=new Set(['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT','ADAUSDT','DOGEUSDT','AVAXUSDT','LINKUSDT','DOTUSDT','TRXUSDT','LTCUSDT','BCHUSDT','SUIUSDT','XLMUSDT','TONUSDT','HBARUSDT','SHIBUSDT','PEPEUSDT','UNIUSDT','AAVEUSDT','NEARUSDT','ATOMUSDT','ICPUSDT','APTUSDT','TAOUSDT','ETCUSDT','FILUSDT','ARBUSDT','OPUSDT']);
+crypto.add('BTCEUR');
 function valid(points:Point[],minimum=20){const clean=points.filter(p=>Number.isFinite(p.t)&&Number.isFinite(p.price)&&p.price>0);if(clean.length<minimum)throw new Error('Historique insuffisant');return clean}
 function trimWindow(points:Point[],windowMs?:number){if(!windowMs||!points.length)return points;const last=points.at(-1)!.t;return points.filter(p=>p.t>=last-windowMs)}
 async function binanceHistory(key:string,period?:ChartPeriod){const cfg=period?chartPeriods[period]:null,interval=cfg?.binanceInterval||'4h',limit=Math.max(120,cfg?.binanceLimit||120);for(const host of ['api.binance.com','api1.binance.com','api2.binance.com','api3.binance.com']){try{const r=await fetch(`https://${host}/api/v3/klines?symbol=${key}&interval=${interval}&limit=${limit}`,{signal:AbortSignal.timeout(4500)});if(!r.ok)continue;return valid((await r.json()).map((k:any[])=>({t:Number(k[0]),price:Number(k[4]),high:Number(k[2]),low:Number(k[3])})))}catch{}}throw new Error('Binance indisponible')}

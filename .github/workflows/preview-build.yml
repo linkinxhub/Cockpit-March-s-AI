@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/**'
       - 'lib/**'
+      - 'tests/**'
       - 'db/**'
       - 'package.json'
       - 'package-lock.json'
@@ -26,3 +27,5 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Build Next.js
         run: npx next build
+      - name: Verify deep research contract
+        run: node --test tests/deep-research-contract.test.mjs tests/deep-research-runtime.test.cjs
