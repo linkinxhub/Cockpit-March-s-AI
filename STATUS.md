@@ -51,3 +51,12 @@ Branche : `feature/deep-market-research`. PR : https://github.com/linkinxhub/Coc
 - L'outil navigateur a été retiré en cours de session : rendu des nouveaux correctifs non revalidé. Build et tests ne remplacent pas cette validation.
 - AI-PLANS mentionne historiquement 1800 tokens : instantané 1800, approfondi 3200. Une recherche réserve une utilisation IA ; le contexte Bigdata peut avoir sa propre consommation existante.
 - Aucune fusion, promotion Vercel ou publication Sites/production. La consigne explicite de validation en branche prévaut sur docs/DUAL-PUBLICATION.md.
+
+## Publication du 14 novembre 2026
+
+- Autorisation explicite de publication reçue dans la conversation.
+- PR #37 fusionnée sur main : commit `60b5899ccfd2500abc9c804c994827a84d1c4b22`.
+- Vercel production : déploiement `dpl_48SndFwKMxwmVJQNnQhYoaQnCdGt` confirmé `READY` sur le commit fusionné.
+- Domaine public : https://cockpit-march-s-ai.vercel.app
+- Limite : recherche Web OpenAI réelle avec session Pro/Expert non testée de bout en bout ; vérifier les sources, l'authentification et la consommation des quotas après connexion.
+- ChatGPT Sites : publication séparée non exécutée et non attestée ; ne pas considérer les deux hébergements synchronisés.
